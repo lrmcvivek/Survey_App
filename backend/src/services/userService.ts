@@ -689,7 +689,6 @@ export async function updateUser(dto: UpdateUserDto, updatedById: string) {
     if (name) updateData.name = name;
     if (password) {
       // Hash password before saving
-      const bcrypt = require('bcryptjs');
       updateData.password = await bcrypt.hash(password, 10);
     }
 

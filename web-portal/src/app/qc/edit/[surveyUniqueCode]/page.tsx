@@ -230,12 +230,8 @@ function QCEditDetailsContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
           <ReadOnlyInput label="Owner Name" value={property.ownerDetails?.ownerName} required />
           <ReadOnlyInput label="Father/Husband Name" value={property.ownerDetails?.fatherHusbandName} required />
-          
           <ReadOnlyInput label="Mobile Number" value={property.ownerDetails?.mobileNumber} />
-          <ReadOnlyInput label="Email Id" value="" /> {/* Intentionally empty per user request */}
-          
           <ReadOnlyInput label="Aadhar Number" value={property.ownerDetails?.aadharNumber} />
-          <ReadOnlyInput label="Cancellation Date" value="" /> {/* Intentionally empty per user request */}
         </div>
 
         {/* Other Detail */}

@@ -204,12 +204,9 @@ const SurveyManagementPage: React.FC = () => {
       <MainLayout>
         <div className="p-6">
           <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-3xl font-bold text-white-900">
               Survey Management
             </h1>
-            <p className="text-gray-600 mt-2">
-              View and manage all surveys in the system
-            </p>
           </div>
 
           {/* Stats Cards */}
@@ -345,27 +342,27 @@ const SurveyManagementPage: React.FC = () => {
                 onChange={(e) => setSelectedStatus(e.target.value)}
                 className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">All QC Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="APPROVED">Approved</option>
-                <option value="REJECTED">Rejected</option>
-                <option value="DUPLICATE">Duplicate</option>
-                <option value="NEEDS_REVISION">Needs Revision</option>
+                <option value="" className="text-black-500">All QC Status</option>
+                <option value="PENDING" className="text-black-500">Pending</option>
+                <option value="APPROVED" className="text-black-500">Approved</option>
+                <option value="REJECTED" className="text-black-500">Rejected</option>
+                <option value="DUPLICATE" className="text-black-500">Duplicate</option>
+                <option value="NEEDS_REVISION" className="text-black-500">Needs Revision</option>
               </select>
               <select
                 value={selectedSyncStatus}
                 onChange={(e) => setSelectedSyncStatus(e.target.value)}
                 className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">All Sync Status</option>
-                <option value="PENDING">Pending</option>
-                <option value="SYNCED">Synced</option>
-                <option value="FAILED">Failed</option>
-                <option value="CONFLICT">Conflict</option>
+                <option value="" className="text-black-500">All Sync Status</option>
+                <option value="PENDING" className="text-black-500">Pending</option>
+                <option value="SYNCED" className="text-black-500">Synced</option>
+                <option value="FAILED" className="text-black-500">Failed</option>
+                <option value="CONFLICT" className="text-black-500">Conflict</option>
               </select>
               <button
                 onClick={handleBulkSync}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="px-4 py-2 bg-green-600 text-black-500 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 text-black-500"
               >
                 Bulk Sync
               </button>

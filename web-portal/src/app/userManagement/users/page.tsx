@@ -23,6 +23,7 @@ const UserManagementPage: React.FC = () => {
   const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
   const [userToDeactivate, setUserToDeactivate] = useState<User | null>(null);
   const [showEditConfirm, setShowEditConfirm] = useState(false);
+  const [showUpdateConfirm, setShowUpdateConfirm] = useState(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
 
   const [formData, setFormData] = useState({
@@ -79,17 +80,6 @@ const UserManagementPage: React.FC = () => {
       toast.error("Please select a role");
       return;
     }
-
-    // Confirmation dialog
-    const confirmed = window.confirm(
-      `Are you sure you want to create a new user?\n\n` +
-        `Name: ${formData.name}\n` +
-        `Username: ${formData.username}\n` +
-        `Role: ${formData.role}\n` +
-        `Mobile: ${formData.mobileNumber}`
-    );
-
-    if (!confirmed) return;
 
     setCreatingUser(true);
     try {
@@ -154,22 +144,19 @@ const UserManagementPage: React.FC = () => {
       return;
     }
 
-    // Show confirmation before updating
-    const roleChanged = formData.role !== (selectedUser.role || selectedUser.userRoleMaps?.[0]?.role?.roleName);
-    const confirmed = window.confirm(
-      `Are you sure you want to update this user?\n\n` +
-        `Name: ${formData.name}\n` +
-        `${formData.password ? 'New Password: ***\n' : ''}` +
-        `Mobile: ${formData.mobileNumber}\n` +
-        `${roleChanged ? `Role: ${selectedUser.role || selectedUser.userRoleMaps?.[0]?.role?.roleName} → ${formData.role}\n` : ''}` +
-        `\nClick OK to confirm.`
-    );
-    
-    if (!confirmed) return;
+    // Show Update Confirmation modal before updating
+    setShowUpdateConfirm(true);
+  };
 
+  const executeUpdate = async () => {
+    if (!selectedUser || !currentUser) return;
+    
+    const currentRoleRank = ROLE_RANK[selectedUser.role || selectedUser.userRoleMaps?.[0]?.role?.roleName || ""] || 0;
+    const newRoleRank = ROLE_RANK[formData.role] || 0;
+    
     try {
-      // Prepare only changed fields for update
       const updatePayload: any = { userId: selectedUser.userId };
+      const roleChanged = formData.role !== (selectedUser.role || selectedUser.userRoleMaps?.[0]?.role?.roleName);
       if (formData.name && formData.name !== (selectedUser.name || "")) {
         updatePayload.name = formData.name;
       }
@@ -213,7 +200,9 @@ const UserManagementPage: React.FC = () => {
       await fetchUsers(); // Ensure UI is updated before closing modal
       toast.success("User updated successfully");
       setShowEditModal(false);
+      setShowEditConfirm(false);
       setSelectedUser(null);
+      setUserToEdit(null);
       setFormData({
         username: "",
         name: "",
@@ -228,7 +217,7 @@ const UserManagementPage: React.FC = () => {
         error?.message ||
         "Failed to update user";
       toast.error(errorMessage);
-      // Do NOT close modal or reset form here, so user can try again
+      // Do NOT close modals or reset form here, so user can try again
     }
   };
 
@@ -757,7 +746,23 @@ const UserManagementPage: React.FC = () => {
                         Cancel
                       </button>
                       <button
-                        type="submit"
+                        type="button"
+                        onClick={() => {
+                          // Validate before showing confirmation
+                          if (!formData.name || formData.name.length < 3) {
+                            toast.error("Name must be at least 3 characters long");
+                            return;
+                          }
+                          if (!formData.mobileNumber || formData.mobileNumber.length !== 10) {
+                            toast.error("Mobile number must be exactly 10 digits");
+                            return;
+                          }
+                          if (formData.password && formData.password.length < 8) {
+                            toast.error("Password must be at least 8 characters long");
+                            return;
+                          }
+                          setShowUpdateConfirm(true);
+                        }}
                         className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                       >
                         Update User
@@ -795,6 +800,7 @@ const UserManagementPage: React.FC = () => {
                       Cancel
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         setSelectedUser(userToEdit);
                         const userRoleName = userToEdit.role || userToEdit.userRoleMaps?.[0]?.role?.roleName || "";
@@ -813,6 +819,44 @@ const UserManagementPage: React.FC = () => {
                       className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                     >
                       Continue
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Update Confirmation Modal */}
+          {showUpdateConfirm && selectedUser && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
+              <div className="relative mx-auto p-6 border w-96 shadow-lg rounded-lg bg-white">
+                <div className="text-center">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                    <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Update User</h3>
+                  <p className="text-sm text-gray-500 mb-6">
+                    Are you sure you want to update user <strong>{selectedUser.name || selectedUser.username}</strong>? This action will modify the user details.
+                  </p>
+                  <div className="flex justify-center space-x-3">
+                    <button
+                      onClick={() => {
+                        setShowUpdateConfirm(false);
+                        // Keep the form open with current values
+                      }}
+                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        executeUpdate();
+                      }}
+                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                    >
+                      Proceed
                     </button>
                   </div>
                 </div>

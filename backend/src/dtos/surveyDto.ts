@@ -87,7 +87,27 @@ const NonResidentialPropertyAssessmentSchema = z.object({
   nrSubCategoryId: z.number().int().positive(), // Property Sub Category (from NR Property Sub Category Master)
   establishmentName: z.string(), // Establishment Name (manual entry)
   licenseNo: z.string().max(20).optional().nullable(), // License Number (manual entry, optional)
-  licenseExpiryDate: z.string().datetime().optional().nullable(), // License Expiry Date (manual entry, optional)
+  licenseExpiryDate: z.string()
+    .refine(
+      (val) => {
+        // Accept both date-only (YYYY-MM-DD) and datetime (ISO) formats
+        const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+        const datetimeRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;
+        return dateOnlyRegex.test(val) || datetimeRegex.test(val);
+      },
+      { message: 'Invalid date format. Expected YYYY-MM-DD or ISO datetime' }
+    )
+    .transform((val) => {
+      // If it's a date-only string (YYYY-MM-DD), append T00:00:00.000Z
+      const dateOnlyRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (dateOnlyRegex.test(val)) {
+        return `${val}T00:00:00.000Z`;
+      }
+      return val;
+    })
+    .pipe(z.string().datetime())
+    .optional()
+    .nullable(), // License Expiry Date (manual entry, optional)
   occupancyStatusId: z.number().int().positive(), // Occupancy Status (from Occupancy Status Master)
   constructionNatureId: z.number().int().positive(), // Construction Nature (from Construction Nature Master)
   builtupArea: z.number(), // Built-up Area (manual entry)

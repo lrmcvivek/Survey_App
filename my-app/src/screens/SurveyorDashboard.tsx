@@ -713,10 +713,7 @@ export default function SurveyorDashboard() {
         {/* Ongoing Survey Alert */}
         {ongoingSurvey && (
         <View style={styles.ongoingSurveyCard}>
-          <Text style={styles.ongoingSurveyTitle}>Ongoing Survey</Text>
-          <Text style={styles.ongoingSurveyText}>
-            You have an ongoing {ongoingSurvey.surveyType} survey
-          </Text>
+          <Text style={styles.ongoingSurveyTitle}>Ongoing {ongoingSurvey.surveyType} Survey</Text>
           <TouchableOpacity style={styles.continueButton} onPress={handleContinueOngoing}>
             <Text style={styles.continueButtonText}>Continue Survey</Text>
           </TouchableOpacity>
@@ -844,24 +841,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#92400E',
-    marginBottom: 4,
-  },
-  ongoingSurveyText: {
-    fontSize: 14,
-    color: '#92400E',
     marginBottom: 12,
+    textAlign: 'center',
   },
   continueButton: {
     backgroundColor: '#F59E0B',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 6,
-    alignSelf: 'flex-start',
+    alignSelf: 'center',
   },
   continueButtonText: {
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
   },
   grid: {
     flexDirection: 'row',

@@ -137,15 +137,12 @@ const Dashboard: React.FC = () => {
   return (
     <ProtectedRoute>
       <MainLayout>
-        <div className="space-y-6">
+        <div className="space-y-3">
           {/* Welcome Section */}
           <div className="bg-white shadow rounded-lg p-6">
             <h1 className="text-2xl font-bold text-gray-900 mb-2">
               Welcome back, {user?.name || user?.username}!
             </h1>
-            <p className="text-gray-600">
-              You are logged in as {getRoleDisplayName(user?.role || "")}
-            </p>
           </div>
 
           {/* Statistics Cards */}
