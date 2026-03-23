@@ -1,19 +1,25 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, FlatList, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { getUnsyncedSurveys, updateLocalSurvey } from '../utils/storage';
+import { getUnsyncedSurveys, updateLocalSurvey, getMasterData } from '../utils/storage';
 
 interface FloorDetail {
   id: string;
-  floorNumber: string;
-  occupancyStatus: string;
-  constructionNature: string;
+  floorNumberId: number;
+  occupancyStatusId: number;
+  constructionNatureId: number;
   coveredArea: string;
   allRoomVerandaArea: string;
   allBalconyKitchenArea: string;
   allGarageArea: string;
   carpetArea: string;
+}
+
+interface MasterData {
+  floorNumbers: { floorNumberId: number; floorNumberName: string }[];
+  occupancyStatuses: { occupancyStatusId: number; occupancyStatusName: string }[];
+  constructionNatures: { constructionNatureId: number; constructionNatureName: string }[];
 }
 
 interface SurveyData {
@@ -35,6 +41,11 @@ export default function ResidentialIntermediate() {
   const route = useRoute();
   const [surveyData, setSurveyData] = useState<SurveyData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [masterData, setMasterData] = useState<MasterData>({
+    floorNumbers: [],
+    occupancyStatuses: [],
+    constructionNatures: [],
+  });
 
   const surveyId = (route.params as any)?.surveyId;
 
@@ -46,12 +57,31 @@ export default function ResidentialIntermediate() {
         return;
       }
 
+      setLoading(true);
       const allSurveys = await getUnsyncedSurveys();
       const survey = allSurveys.find((s: any) => s.id === surveyId);
+      
+      if (!survey) {
+        Alert.alert('Error', 'Survey not found. It may have been deleted or synced.');
+        navigation.goBack();
+        return;
+      }
+      
       setSurveyData(survey);
+      
+      // Load master data for displaying names
+      const masterDataResult = await getMasterData();
+      if (masterDataResult) {
+        setMasterData({
+          floorNumbers: masterDataResult?.floors || [],
+          occupancyStatuses: masterDataResult?.occupancyStatuses || [],
+          constructionNatures: masterDataResult?.constructionNatures || [],
+        });
+      }
     } catch (error) {
       console.error('Error loading survey data:', error);
-      Alert.alert('Error', 'Failed to load survey data');
+      Alert.alert('Error', 'Failed to load survey data. Please try again.');
+      navigation.goBack();
     } finally {
       setLoading(false);
     }
@@ -60,8 +90,21 @@ export default function ResidentialIntermediate() {
   useFocusEffect(
     useCallback(() => {
       loadSurveyData();
+      
+      // Add back button handler
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackNavigation);
+      
+      return () => {
+        backHandler.remove();
+      };
     }, [loadSurveyData])
   );
+
+  const handleBackNavigation = () => {
+    navigation.goBack();
+    // Prevent default back navigation
+    return true;
+  };
 
   const handleAddNewFloor = () => {
     if (!surveyData) return;
@@ -74,22 +117,41 @@ export default function ResidentialIntermediate() {
   };
 
   const handleEditFloor = (floorId: string) => {
-    if (!surveyData) return;
+    if (!surveyData || !surveyData.data) return;
 
-    const floorData = surveyData.data.residentialPropertyAssessments?.find(
-      (floor) => floor.id === floorId
+    // Show confirmation dialog before editing
+    Alert.alert(
+      'Confirm Edit',
+      'Are you sure you want to edit this floor detail?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Edit',
+          style: 'default',
+          onPress: () => {
+            const floorData = surveyData.data.residentialPropertyAssessments?.find(
+              (floor) => floor.id === floorId
+            );
+
+            if (!floorData) {
+              Alert.alert('Error', 'Floor data not found');
+              return;
+            }
+
+            navigation.navigate('ResidentialFloorDetail', {
+              surveyId: surveyData.id,
+              editMode: true,
+              floorId: floorId,
+              floorData: floorData,
+            });
+          },
+        },
+      ]
     );
-
-    navigation.navigate('ResidentialFloorDetail', {
-      surveyId: surveyData.id,
-      editMode: true,
-      floorId: floorId,
-      floorData: floorData,
-    });
   };
 
   const handleDeleteFloor = (floorId: string) => {
-    if (!surveyData) return;
+    if (!surveyData || !surveyData.data) return;
 
     Alert.alert('Delete Floor', 'Are you sure you want to delete this floor detail?', [
       { text: 'Cancel', style: 'cancel' },
@@ -116,17 +178,31 @@ export default function ResidentialIntermediate() {
             Alert.alert('Success', 'Floor detail deleted successfully');
           } catch (error) {
             console.error(error);
-            Alert.alert('Error', 'Failed to delete floor detail');
+            Alert.alert('Error', 'Failed to delete floor detail. Please try again.');
           }
         },
       },
     ]);
   };
 
-  const renderFloorCard = ({ item }: { item: FloorDetail }) => (
+  const renderFloorCard = ({ item }: { item: FloorDetail }) => {
+    // Get names from master data using IDs
+    const floorName = masterData.floorNumbers.find(
+      (f) => f.floorNumberId === item.floorNumberId
+    )?.floorNumberName || 'Unknown';
+    
+    const occupancyStatusName = masterData.occupancyStatuses.find(
+      (s) => s.occupancyStatusId === item.occupancyStatusId
+    )?.occupancyStatusName || 'Unknown';
+    
+    const constructionNatureName = masterData.constructionNatures.find(
+      (n) => n.constructionNatureId === item.constructionNatureId
+    )?.constructionNatureName || 'Unknown';
+
+    return (
     <View style={styles.floorCard}>
       <View style={styles.floorHeader}>
-        <Text style={styles.floorTitle}>Floor {item.floorNumber}</Text>
+        <Text style={styles.floorTitle}>{floorName}</Text>
         <View style={styles.floorActions}>
           <TouchableOpacity style={styles.actionButton} onPress={() => handleEditFloor(item.id)}>
             <Text style={styles.actionButtonText}>Edit</Text>
@@ -142,11 +218,11 @@ export default function ResidentialIntermediate() {
       <View style={styles.floorDetails}>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Occupancy Status:</Text>
-          <Text style={styles.detailValue}>{item.occupancyStatus}</Text>
+          <Text style={styles.detailValue}>{occupancyStatusName}</Text>
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Construction Nature:</Text>
-          <Text style={styles.detailValue}>{item.constructionNature}</Text>
+          <Text style={styles.detailValue}>{constructionNatureName}</Text>
         </View>
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Covered Area:</Text>
@@ -159,6 +235,7 @@ export default function ResidentialIntermediate() {
       </View>
     </View>
   );
+  };
 
   if (loading) {
     return (

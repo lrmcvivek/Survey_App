@@ -80,6 +80,61 @@ class CameraErrorBoundary extends React.Component<
   }
 }
 
+// Global Error Boundary for entire Survey Form
+class SurveyFormErrorBoundary extends React.Component<
+  { children: React.ReactNode; onError: (error: Error) => void; navigation?: any },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode; onError: (error: Error) => void; navigation?: any }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    console.error('🚨 SurveyForm Error Boundary caught critical error:', error);
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('🚨 SurveyForm Error Boundary details:', error, errorInfo);
+    // Save error info for recovery
+    AsyncStorage.setItem('@ptms_last_crash_error', JSON.stringify({
+      message: error.message,
+      stack: error.stack,
+      timestamp: Date.now(),
+    })).catch(() => {});
+    this.props.onError(error);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F3F4F6' }}>
+          <View style={{ padding: 20, backgroundColor: 'white', borderRadius: 12, maxWidth: '90%' }}>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#DC2626', marginBottom: 12, textAlign: 'center' }}>
+              ⚠️ Application Error
+            </Text>
+            <Text style={{ fontSize: 14, color: '#666', marginBottom: 16, textAlign: 'center' }}>
+              The survey form encountered an unexpected error. Your data has been saved automatically.
+            </Text>
+            <TouchableOpacity
+              style={{ backgroundColor: '#3B82F6', padding: 14, borderRadius: 8, alignItems: 'center' }}
+              onPress={() => {
+                // Navigate back to dashboard
+                this.props.navigation?.goBack();
+              }}
+            >
+              <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>Return to Dashboard</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 interface FormData {
   ulbId: string;
   zoneId: string;
@@ -134,6 +189,32 @@ export default function SurveyForm({ route }: any) {
   // Add mount logging to track component lifecycle
   const componentId = useRef(`SurveyForm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   console.log(`📱 SurveyForm mounting [${componentId.current}] with params:`, route?.params);
+  
+  // CRASH DEBUGGING: Add global error handler for this component
+  useEffect(() => {
+    const errorHandler = (error: ErrorEvent) => {
+      console.error('🚨 GLOBAL ERROR CAUGHT in SurveyForm:', error);
+      console.error('🚨 Error stack:', error.error?.stack);
+      // Save crash info
+      AsyncStorage.setItem('@ptms_last_crash', JSON.stringify({
+        type: 'global_error',
+        message: error.message,
+        stack: error.error?.stack,
+        timestamp: Date.now(),
+        componentId: componentId.current,
+      })).catch(() => {});
+    };
+    
+    // Add error listener
+    if (ErrorUtils) {
+      ErrorUtils.setGlobalHandler(errorHandler);
+    }
+    
+    return () => {
+      // Cleanup on unmount
+      console.log('Removing global error handler');
+    };
+  }, []);
   
   let {
     surveyType,
@@ -198,6 +279,10 @@ export default function SurveyForm({ route }: any) {
   const [lastClickTime, setLastClickTime] = useState(0);
   const CLICK_DEBOUNCE_MS = 1000; // Prevent clicks within 1 second
   const [cameraReady, setCameraReady] = useState(false);
+  
+  // Add state to track save operation status (prevents rapid clicks)
+  const [isSaving, setIsSaving] = useState(false);
+  const SAVE_DEBOUNCE_MS = 2000; // Prevent save clicks within 2 seconds
   
   // Track if draft was already saved on exit to prevent double-save
   const draftSavedOnExit = useRef(false);
@@ -687,13 +772,13 @@ export default function SurveyForm({ route }: any) {
           
           // Restore form data safely
           if (draft.formData && componentMounted.current) {
-            setFormData(prev => ({ ...prev, ...draft.formData }));
+            safeSetState(() => setFormData(prev => ({ ...prev, ...draft.formData })), 'restoreFormData');
             console.log('[SurveyForm] Restored form data - fields updated:', Object.keys(draft.formData).length);
           }
           
           // Restore photos safely
           if (draft.photos && componentMounted.current) {
-            setPhotos(draft.photos);
+            safeSetState(() => setPhotos(draft.photos), 'restorePhotos');
             console.log('[SurveyForm] Restored photos:', JSON.stringify(draft.photos));
           }
           
@@ -999,6 +1084,7 @@ export default function SurveyForm({ route }: any) {
         const latStr = latitude.toFixed(8);
         const lonStr = longitude.toFixed(8);
         
+        // Update both fields in a single batch to prevent race conditions
         safeSetState(() => {
           handleInputChange('propertyLatitude', latStr);
           handleInputChange('propertyLongitude', lonStr);
@@ -1569,6 +1655,7 @@ export default function SurveyForm({ route }: any) {
   // })) || [];
 
   const handleInputChange = (name: keyof FormData, value: string | number) => {
+    // Direct state update - no debouncing for text inputs (causes keyboard issues)
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -1648,6 +1735,23 @@ export default function SurveyForm({ route }: any) {
   };
 
   const handleSave = async () => {
+    // Implement save debouncing to prevent rapid clicks
+    const currentTime = Date.now();
+    if (currentTime - lastClickTime < SAVE_DEBOUNCE_MS) {
+      console.log(`Rapid save click detected, ignoring (${currentTime - lastClickTime}ms since last save)`);
+      return;
+    }
+    
+    // Prevent multiple simultaneous save operations
+    if (isSaving) {
+      console.log('Save already in progress, ignoring duplicate request');
+      return;
+    }
+    
+    // Set saving state immediately
+    setIsSaving(true);
+    setLastClickTime(currentTime);
+    
     // Track this save operation
     const operationId = `save_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
     const cleanupOperation = trackOperation(operationId);
@@ -1658,7 +1762,10 @@ export default function SurveyForm({ route }: any) {
         return;
       }
       
-      if (!validateForm()) return;
+      if (!validateForm()) {
+        setIsSaving(false);
+        return;
+      }
       
       const toNumber = (v: any) =>
         v === '' || v === null || v === undefined ? undefined : Number(v);
@@ -1908,6 +2015,10 @@ export default function SurveyForm({ route }: any) {
         Alert.alert('Error', 'Failed to save survey locally.');
       }
     } finally {
+      // Reset saving state
+      if (componentMounted.current) {
+        setIsSaving(false);
+      }
       cleanupOperation();
     }
   };
@@ -1936,6 +2047,7 @@ export default function SurveyForm({ route }: any) {
   try {
 
   return (
+    <SurveyFormErrorBoundary onError={(error) => console.error('SurveyForm crashed:', error)} navigation={navigation}>
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.topHeader}>
         <TouchableOpacity onPress={handleBackConfirm} style={styles.topBackButton}>
@@ -2490,7 +2602,11 @@ export default function SurveyForm({ route }: any) {
         </View>
 
         <View style={styles.buttonContainer}>
-          <Button title="Save Survey" onPress={handleSave} />
+          <Button 
+            title={isSaving ? "Saving..." : "Save Survey"} 
+            onPress={handleSave} 
+            disabled={isSaving}
+          />
         </View>
       </ScrollView>
 
@@ -2643,6 +2759,7 @@ export default function SurveyForm({ route }: any) {
       </Modal>
       <Toast />
     </SafeAreaView>
+    </SurveyFormErrorBoundary>
   );
   } catch (renderError) {
     console.error('SurveyForm render error:', renderError);

@@ -151,12 +151,9 @@ const ReportsPage: React.FC = () => {
           <div className="mb-6">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">
+                <h1 className="text-3xl font-bold text-white-900">
                   Reports & Analytics
                 </h1>
-                <p className="text-gray-600 mt-2">
-                  Comprehensive insights and analytics for the survey system
-                </p>
               </div>
               <div className="flex gap-2">
                 <select

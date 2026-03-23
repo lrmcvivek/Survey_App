@@ -34,7 +34,7 @@ interface FloorDetail {
   licenseExpiryDate: string;
   occupancyStatusId: number;
   constructionNatureId: number;
-  builtupArea: string;
+  builtupArea: string | number;
 }
 
 interface MasterData {
@@ -91,17 +91,45 @@ export default function NonResidentialFloorDetail() {
   const floorData = (route.params as any)?.floorData;
 
   useEffect(() => {
-    loadMasterData();
-    if (editMode && floorData) {
-      setFormData(floorData);
-    } else {
-      // Generate new ID for new floor
-      setFormData((prev) => ({
-        ...prev,
-        id: `floor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      }));
+    try {
+      loadMasterData();
+      
+      if (editMode && floorData) {
+        // Validate that floorData has required fields
+        if (!floorData.id) {
+          Alert.alert('Error', 'Invalid floor data provided');
+          navigation.goBack();
+          return;
+        }
+        setFormData(floorData);
+        // Load sub-categories for the existing category when editing
+        if (floorData.nrPropertyCategoryId) {
+          loadSubCategories(floorData.nrPropertyCategoryId);
+        }
+      } else {
+        // Generate new ID for new floor
+        setFormData((prev) => ({
+          ...prev,
+          id: `floor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        }));
+      }
+    } catch (error) {
+      console.error('Error initializing form:', error);
+      Alert.alert('Error', 'Failed to initialize form. Please try again.');
+      navigation.goBack();
     }
   }, []);
+
+  const loadSubCategories = async (categoryId: number) => {
+    try {
+      const fetchedSubCategories = await fetchNrPropertySubCategories(categoryId);
+      setSubCategories(fetchedSubCategories);
+    } catch (error) {
+      console.error('Error fetching sub-categories:', error);
+      Alert.alert('Error', 'Failed to fetch sub-categories.');
+      setSubCategories([]);
+    }
+  };
 
   const loadMasterData = async () => {
     try {
@@ -195,7 +223,8 @@ export default function NonResidentialFloorDetail() {
       Alert.alert('Validation Error', 'Please select Construction Nature');
       return false;
     }
-    if (!formData.builtupArea || parseFloat(formData.builtupArea) <= 0) {
+    const builtupValue = typeof formData.builtupArea === 'string' ? parseFloat(formData.builtupArea) : formData.builtupArea;
+    if (!builtupValue || builtupValue <= 0) {
       Alert.alert('Validation Error', 'Please enter a valid Built-up Area');
       return false;
     }
@@ -205,70 +234,95 @@ export default function NonResidentialFloorDetail() {
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    setSaving(true);
-    try {
-      const allSurveys = await getUnsyncedSurveys();
-      const idx = allSurveys.findIndex((s: any) => s.id === surveyId);
-      if (idx > -1) {
-        const survey = allSurveys[idx];
-        const processedFormData = {
-          ...formData,
-          builtupArea: parseFloat(formData.builtupArea) || 0,
-          licenseNo: formData.licenseNo === '' ? null : formData.licenseNo,
-          licenseExpiryDate: !formData.licenseExpiryDate ? null : formData.licenseExpiryDate,
-          floorNumberId: Number(formData.floorNumberId),
-          nrPropertyCategoryId: Number(formData.nrPropertyCategoryId),
-          nrSubCategoryId: Number(formData.nrSubCategoryId),
-          occupancyStatusId: Number(formData.occupancyStatusId),
-          constructionNatureId: Number(formData.constructionNatureId),
-        };
+    // Show confirmation dialog before saving
+    const confirmTitle = editMode ? 'Confirm Update' : 'Confirm Save';
+    const confirmMessage = editMode 
+      ? 'Are you sure you want to update this floor detail?' 
+      : 'Are you sure you want to save this floor detail?';
+    const confirmButton = editMode ? 'Update' : 'Save';
 
-        const existingFloors =
-          survey.data && survey.data.nonResidentialPropertyAssessments
-            ? survey.data.nonResidentialPropertyAssessments
-            : [];
-        let updatedFloors;
+    Alert.alert(
+      confirmTitle,
+      confirmMessage,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: confirmButton,
+          style: 'default',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              const allSurveys = await getUnsyncedSurveys();
+              const idx = allSurveys.findIndex((s: any) => s.id === surveyId);
+              if (idx > -1) {
+                const survey = allSurveys[idx];
+                if (!survey) {
+                  Alert.alert('Error', 'Survey not found');
+                  setSaving(false);
+                  return;
+                }
 
-        if (editMode) {
-          // Update existing floor
-          updatedFloors = existingFloors.map((floor: any) =>
-            floor.id === floorId ? processedFormData : floor
-          );
-        } else {
-          // Add new floor
-          updatedFloors = [...existingFloors, processedFormData];
-        }
+                const processedFormData = {
+                  ...formData,
+                  builtupArea: typeof formData.builtupArea === 'string' ? parseFloat(formData.builtupArea) || 0 : formData.builtupArea,
+                  licenseNo: formData.licenseNo === '' ? null : formData.licenseNo,
+                  licenseExpiryDate: !formData.licenseExpiryDate ? null : formData.licenseExpiryDate,
+                  floorNumberId: Number(formData.floorNumberId),
+                  nrPropertyCategoryId: Number(formData.nrPropertyCategoryId),
+                  nrSubCategoryId: Number(formData.nrSubCategoryId),
+                  occupancyStatusId: Number(formData.occupancyStatusId),
+                  constructionNatureId: Number(formData.constructionNatureId),
+                };
 
-        const updatedSurvey = {
-          ...survey,
-          data: {
-            ...survey.data,
-            nonResidentialPropertyAssessments: updatedFloors,
+                const existingFloors =
+                  survey.data && survey.data.nonResidentialPropertyAssessments
+                    ? survey.data.nonResidentialPropertyAssessments
+                    : [];
+                let updatedFloors;
+
+                if (editMode && floorId) {
+                  // Update existing floor
+                  updatedFloors = existingFloors.map((floor: any) =>
+                    floor.id === floorId ? processedFormData : floor
+                  );
+                } else {
+                  // Add new floor
+                  updatedFloors = [...existingFloors, processedFormData];
+                }
+
+                const updatedSurvey = {
+                  ...survey,
+                  data: {
+                    ...survey.data,
+                    nonResidentialPropertyAssessments: updatedFloors,
+                  },
+                };
+
+                await saveSurveyLocally(updatedSurvey);
+
+                Alert.alert(
+                  'Success',
+                  editMode ? 'Floor detail updated successfully' : 'Floor detail added successfully',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => navigation.goBack(),
+                    },
+                  ]
+                );
+              } else {
+                Alert.alert('Error', 'Survey not found in local storage');
+                setSaving(false);
+              }
+            } catch (error) {
+              console.error('Error saving floor detail:', error);
+              Alert.alert('Error', 'Failed to save floor detail. Please try again.');
+              setSaving(false);
+            }
           },
-        };
-
-        if (idx > -1) {
-          allSurveys[idx] = updatedSurvey;
-          await saveSurveyLocally(updatedSurvey);
-        }
-
-        Alert.alert(
-          'Success',
-          editMode ? 'Floor detail updated successfully' : 'Floor detail added successfully',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.error('Error saving floor detail:', error);
-      Alert.alert('Error', 'Failed to save floor detail');
-    } finally {
-      setSaving(false);
-    }
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -284,7 +338,21 @@ export default function NonResidentialFloorDetail() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.topHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.topBackButton}>
+        <TouchableOpacity style={styles.topBackButton} onPress={() => {
+              Alert.alert(
+                'Confirm Cancel',
+                'Are you sure you want to cancel? Any unsaved changes will be lost.',
+                [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: () => navigation.goBack(),
+                  },
+                ]
+              );
+            }}
+            disabled={saving}>
           <Text style={styles.topBackArrow}>←</Text>
         </TouchableOpacity>
         <Text style={styles.topHeaderTitle}>
@@ -319,7 +387,7 @@ export default function NonResidentialFloorDetail() {
 
           {/* Property Category */}
           <View style={styles.formGroup}>
-            <Text style={{ color: '#111' }}>Property Category *</Text>
+            <Text style={{ color: '#111' }}>Property Category <Text style={{ color: 'red' }}>*</Text></Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={formData.nrPropertyCategoryId}
@@ -341,7 +409,7 @@ export default function NonResidentialFloorDetail() {
 
           {/* Property Sub Category */}
           <View style={styles.formGroup}>
-            <Text style={{ color: '#111' }}>Property Sub Category *</Text>
+            <Text style={{ color: '#111' }}>Property Sub Category <Text style={{ color: 'red' }}>*</Text></Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={formData.nrSubCategoryId}
@@ -362,7 +430,7 @@ export default function NonResidentialFloorDetail() {
 
           {/* Establishment Name */}
           <View style={styles.formGroup}>
-            <Text style={{ color: '#111' }}>Establishment Name *</Text>
+            <Text style={{ color: '#111' }}>Establishment Name <Text style={{ color: 'red' }}>*</Text></Text>
             <TextInput
               style={styles.input}
               value={formData.establishmentName}
@@ -385,16 +453,29 @@ export default function NonResidentialFloorDetail() {
           {/* License Expiry Date */}
           <View style={styles.formGroup}>
             <Text style={{ color: '#111' }}>License Expiry Date</Text>
-            <TouchableOpacity style={styles.dateInput} onPress={() => setShowDatePicker(true)}>
-              <Text style={formData.licenseExpiryDate ? styles.dateText : styles.placeholderText}>
-                {formData.licenseExpiryDate || 'Select expiry date'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.dateInputContainer}>
+              <TouchableOpacity 
+                style={[styles.dateInput, { flex: 1 }]} 
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={formData.licenseExpiryDate ? styles.dateText : styles.placeholderText}>
+                  {formData.licenseExpiryDate || 'Select expiry date'}
+                </Text>
+              </TouchableOpacity>
+              {formData.licenseExpiryDate && (
+                <TouchableOpacity 
+                  style={styles.clearDateButton}
+                  onPress={() => setFormData((prev) => ({ ...prev, licenseExpiryDate: '' }))}
+                >
+                  <Text style={styles.clearDateButtonText}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
 
           {/* Occupancy Status */}
           <View style={styles.formGroup}>
-            <Text style={{ color: '#111' }}>Occupancy Status *</Text>
+            <Text style={{ color: '#111' }}>Occupancy Status <Text style={{ color: 'red' }}>*</Text></Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={formData.occupancyStatusId}
@@ -414,7 +495,7 @@ export default function NonResidentialFloorDetail() {
 
           {/* Construction Nature */}
           <View style={styles.formGroup}>
-            <Text style={{ color: '#111' }}>Construction Nature *</Text>
+            <Text style={{ color: '#111' }}>Construction Nature <Text style={{ color: 'red' }}>*</Text></Text>
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={formData.constructionNatureId}
@@ -436,10 +517,10 @@ export default function NonResidentialFloorDetail() {
 
           {/* Built-up Area */}
           <View style={styles.formGroup}>
-            <Text style={{ color: '#111' }}>Built-up Area (sq ft) *</Text>
+            <Text style={{ color: '#111' }}>Built-up Area (sq ft) <Text style={{ color: 'red' }}>*</Text></Text>
             <TextInput
               style={styles.input}
-              value={formData.builtupArea}
+              value={typeof formData.builtupArea === 'string' ? formData.builtupArea : String(formData.builtupArea)}
               onChangeText={(value) => handleInputChange('builtupArea', value)}
               placeholder="Enter built-up area"
               keyboardType="numeric"
@@ -451,7 +532,20 @@ export default function NonResidentialFloorDetail() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.button, styles.cancelButton]}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              Alert.alert(
+                'Confirm Cancel',
+                'Are you sure you want to cancel? Any unsaved changes will be lost.',
+                [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: () => navigation.goBack(),
+                  },
+                ]
+              );
+            }}
             disabled={saving}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
@@ -568,6 +662,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 12,
     justifyContent: 'center',
+  },
+  dateInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  clearDateButton: {
+    backgroundColor: '#EF4444',
+    borderRadius: 8,
+    width: 34,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearDateButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   dateText: {
     fontSize: 16,

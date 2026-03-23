@@ -75,20 +75,38 @@ export default function ResidentialFloorDetail() {
   const [assignment, setAssignment] = useState<any>(null);
 
   useEffect(() => {
-    loadMasterData();
-    if (editMode && floorData) {
-      setFormData(floorData);
-    } else {
-      // Generate new ID for new floor
-      setFormData((prev) => ({
-        ...prev,
-        id: `floor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      }));
+    try {
+      loadMasterData();
+      
+      if (editMode && floorData) {
+        // Validate that floorData has required fields
+        if (!floorData.id) {
+          Alert.alert('Error', 'Invalid floor data provided');
+          navigation.goBack();
+          return;
+        }
+        setFormData(floorData);
+      } else {
+        // Generate new ID for new floor
+        setFormData((prev) => ({
+          ...prev,
+          id: `floor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        }));
+      }
+      
+      (async () => {
+        try {
+          const selected = await getSelectedAssignment();
+          if (selected) setAssignment(selected);
+        } catch (error) {
+          console.error('Error loading assignment:', error);
+        }
+      })();
+    } catch (error) {
+      console.error('Error initializing form:', error);
+      Alert.alert('Error', 'Failed to initialize form. Please try again.');
+      navigation.goBack();
     }
-    (async () => {
-      const selected = await getSelectedAssignment();
-      if (selected) setAssignment(selected);
-    })();
   }, []);
 
   const loadMasterData = async () => {
@@ -158,74 +176,99 @@ export default function ResidentialFloorDetail() {
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    setSaving(true);
-    try {
-      const allSurveys = await getUnsyncedSurveys();
-      const idx = allSurveys.findIndex((s: any) => s.id === surveyId);
-      if (idx > -1) {
-        const survey = allSurveys[idx];
-        const processedFormData = {
-          ...formData,
-          coveredArea: formData.coveredArea || 0,
-          allRoomVerandaArea:
-            formData.allRoomVerandaArea === '' ? null : parseFloat(formData.allRoomVerandaArea),
-          allBalconyKitchenArea:
-            formData.allBalconyKitchenArea === ''
-              ? null
-              : parseFloat(formData.allBalconyKitchenArea),
-          allGarageArea: formData.allGarageArea === '' ? null : parseFloat(formData.allGarageArea),
-          carpetArea: formData.carpetArea || 0,
-          floorNumberId: Number(formData.floorNumberId),
-          occupancyStatusId: Number(formData.occupancyStatusId),
-          constructionNatureId: Number(formData.constructionNatureId),
-        };
+    // Show confirmation dialog before saving
+    const confirmTitle = editMode ? 'Confirm Update' : 'Confirm Save';
+    const confirmMessage = editMode 
+      ? 'Are you sure you want to update this floor detail?' 
+      : 'Are you sure you want to save this floor detail?';
+    const confirmButton = editMode ? 'Update' : 'Save';
 
-        const existingFloors =
-          survey.data && survey.data.residentialPropertyAssessments
-            ? survey.data.residentialPropertyAssessments
-            : [];
-        let updatedFloors;
+    Alert.alert(
+      confirmTitle,
+      confirmMessage,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: confirmButton,
+          style: 'default',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              const allSurveys = await getUnsyncedSurveys();
+              const idx = allSurveys.findIndex((s: any) => s.id === surveyId);
+              if (idx > -1) {
+                const survey = allSurveys[idx];
+                if (!survey) {
+                  Alert.alert('Error', 'Survey not found');
+                  setSaving(false);
+                  return;
+                }
 
-        if (editMode) {
-          // Update existing floor
-          updatedFloors = existingFloors.map((floor: FloorDetail) =>
-            floor.id === floorId ? processedFormData : floor
-          );
-        } else {
-          // Add new floor
-          updatedFloors = [...existingFloors, processedFormData];
-        }
+                const processedFormData = {
+                  ...formData,
+                  coveredArea: formData.coveredArea || 0,
+                  allRoomVerandaArea:
+                    formData.allRoomVerandaArea === '' ? null : parseFloat(formData.allRoomVerandaArea),
+                  allBalconyKitchenArea:
+                    formData.allBalconyKitchenArea === ''
+                      ? null
+                      : parseFloat(formData.allBalconyKitchenArea),
+                  allGarageArea: formData.allGarageArea === '' ? null : parseFloat(formData.allGarageArea),
+                  carpetArea: formData.carpetArea || 0,
+                  floorNumberId: Number(formData.floorNumberId),
+                  occupancyStatusId: Number(formData.occupancyStatusId),
+                  constructionNatureId: Number(formData.constructionNatureId),
+                };
 
-        const updatedSurvey = {
-          ...survey,
-          data: {
-            ...survey.data,
-            residentialPropertyAssessments: updatedFloors,
+                const existingFloors =
+                  survey.data && survey.data.residentialPropertyAssessments
+                    ? survey.data.residentialPropertyAssessments
+                    : [];
+                let updatedFloors;
+
+                if (editMode && floorId) {
+                  // Update existing floor
+                  updatedFloors = existingFloors.map((floor: FloorDetail) =>
+                    floor.id === floorId ? processedFormData : floor
+                  );
+                } else {
+                  // Add new floor
+                  updatedFloors = [...existingFloors, processedFormData];
+                }
+
+                const updatedSurvey = {
+                  ...survey,
+                  data: {
+                    ...survey.data,
+                    residentialPropertyAssessments: updatedFloors,
+                  },
+                };
+
+                await saveSurveyLocally(updatedSurvey);
+
+                Alert.alert(
+                  'Success',
+                  editMode ? 'Floor detail updated successfully' : 'Floor detail added successfully',
+                  [
+                    {
+                      text: 'OK',
+                      onPress: () => navigation.goBack(),
+                    },
+                  ]
+                );
+              } else {
+                Alert.alert('Error', 'Survey not found in local storage');
+                setSaving(false);
+              }
+            } catch (error) {
+              console.error('Error saving floor detail:', error);
+              Alert.alert('Error', 'Failed to save floor detail. Please try again.');
+              setSaving(false);
+            }
           },
-        };
-
-        if (idx > -1) {
-          allSurveys[idx] = updatedSurvey;
-          await saveSurveyLocally(updatedSurvey);
-        }
-
-        Alert.alert(
-          'Success',
-          editMode ? 'Floor detail updated successfully' : 'Floor detail added successfully',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack(),
-            },
-          ]
-        );
-      }
-    } catch (error) {
-      console.error('Error saving floor detail:', error);
-      Alert.alert('Error', 'Failed to save floor detail');
-    } finally {
-      setSaving(false);
-    }
+        },
+      ]
+    );
   };
 
   if (loading) {
@@ -241,7 +284,22 @@ export default function ResidentialFloorDetail() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <View style={styles.topHeader}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.topBackButton}>
+        <TouchableOpacity style={styles.topBackButton}
+            onPress={() => {
+              Alert.alert(
+                'Confirm Cancel',
+                'Are you sure you want to cancel? Any unsaved changes will be lost.',
+                [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: () => navigation.goBack(),
+                  },
+                ]
+              );
+            }}
+            disabled={saving}>
           <Text style={styles.topBackArrow}>←</Text>
         </TouchableOpacity>
         <Text style={styles.topHeaderTitle}>
@@ -379,7 +437,7 @@ export default function ResidentialFloorDetail() {
               style={[styles.input, styles.disabledInput]}
               value={formData.carpetArea === 0 ? '' : String(formData.carpetArea)}
               editable={false}
-              placeholder="Auto-calculated (80% of covered area)"
+              placeholder="0"
             />
             <Text style={styles.helperText}>Automatically calculated as 80% of covered area</Text>
           </View>
@@ -389,7 +447,20 @@ export default function ResidentialFloorDetail() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.button, styles.cancelButton]}
-            onPress={() => navigation.goBack()}
+            onPress={() => {
+              Alert.alert(
+                'Confirm Cancel',
+                'Are you sure you want to cancel? Any unsaved changes will be lost.',
+                [
+                  { text: 'No', style: 'cancel' },
+                  {
+                    text: 'Yes, Cancel',
+                    style: 'destructive',
+                    onPress: () => navigation.goBack(),
+                  },
+                ]
+              );
+            }}
             disabled={saving}>
             <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>

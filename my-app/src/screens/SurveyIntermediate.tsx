@@ -12,6 +12,7 @@ import {
 import { submitSurvey } from '../services/surveyService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
+import { BackHandler } from 'react-native';
 
 interface SurveyData {
   id: string;
@@ -41,10 +42,34 @@ export default function SurveyIntermediate() {
   const { userRole } = useAuth();
   const [surveyData, setSurveyData] = useState<SurveyData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [mohallaName, setMohallaName] = useState<string>('');
 
   useEffect(() => {
     loadSurveyData();
+    loadMohallaName();
+    
+    // Add back button handler
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', handleBackNavigation);
+    
+    return () => {
+      backHandler.remove();
+    };
   }, []);
+
+  const loadMohallaName = async () => {
+    try {
+      const assignmentJson = await AsyncStorage.getItem('primaryAssignment');
+      if (assignmentJson) {
+        const assignment = JSON.parse(assignmentJson);
+        // Get mohalla name from assignment's mohallas array
+        if (assignment.mohallas && assignment.mohallas.length > 0) {
+          setMohallaName(assignment.mohallas[0].mohallaName || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading mohalla name:', error);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -75,24 +100,32 @@ export default function SurveyIntermediate() {
 
   const handleEditSurvey = async () => {
     if (!surveyData) return;
+    
     let assignment = null;
     try {
       assignment = await getSelectedAssignment();
     } catch (e) {
+      console.error('Error getting assignment:', e);
       assignment = null;
     }
+    
     Alert.alert('Edit Survey', 'Are you sure you want to edit this survey?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Edit',
         onPress: () => {
-          navigation.navigate('SurveyForm', {
-            surveyType: surveyData.surveyType,
-            editMode: true,
-            surveyData: surveyData.data,
-            surveyId: surveyData.id,
-            assignment, // pass assignment for edit mode
-          });
+          try {
+            navigation.navigate('SurveyForm', {
+              surveyType: surveyData.surveyType,
+              editMode: true,
+              surveyData: surveyData.data,
+              surveyId: surveyData.id,
+              assignment,
+            });
+          } catch (error) {
+            console.error('Navigation error:', error);
+            Alert.alert('Error', 'Failed to navigate to edit form. Please try again.');
+          }
         },
       },
     ]);
@@ -113,6 +146,34 @@ export default function SurveyIntermediate() {
     }
   };
 
+  const handleBackNavigation = () => {
+    Alert.alert(
+      'Navigate to Dashboard?',
+      `Are you sure you want to navigate to the Dashboard? You can access this survey again from the Dashboard later.`,
+      [
+        { text: 'Stay Here', style: 'cancel' },
+        {
+          text: 'Go to Dashboard',
+          style: 'default',
+          onPress: () => {
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: 'AuthenticatedDrawer',
+                  params: { initialDashboard: getDashboardScreen() },
+                } as any,
+              ],
+            });
+          },
+        },
+      ]
+    );
+    
+    // Prevent default back navigation
+    return true;
+  };
+
   const handleDeleteSurvey = () => {
     if (!surveyData) return;
 
@@ -131,21 +192,27 @@ export default function SurveyIntermediate() {
                 {
                   text: 'OK',
                   onPress: () => {
-                    navigation.reset({
-                      index: 0,
-                      routes: [
-                        {
-                          name: 'AuthenticatedDrawer',
-                          params: { initialDashboard: getDashboardScreen() },
-                        } as any,
-                      ],
-                    });
+                    try {
+                      navigation.reset({
+                        index: 0,
+                        routes: [
+                          {
+                            name: 'AuthenticatedDrawer',
+                            params: { initialDashboard: getDashboardScreen() },
+                          } as any,
+                        ],
+                      });
+                    } catch (navError) {
+                      console.error('Navigation reset error:', navError);
+                      // Fallback to simple goBack
+                      navigation.goBack();
+                    }
                   },
                 },
               ]);
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete survey');
-              console.error(error);
+              console.error('Delete error:', error);
+              Alert.alert('Error', 'Failed to delete survey. Please try again.');
             }
           },
         },
@@ -172,7 +239,11 @@ export default function SurveyIntermediate() {
             try {
               // Fetch the latest version of the survey from storage
               const latest = await getLocalSurvey(surveyData.id);
-              if (!latest) throw new Error('Survey not found in storage');
+              if (!latest) {
+                Alert.alert('Error', 'Survey not found in storage. Please try again.');
+                return;
+              }
+              
               await saveSurveyLocally({ ...latest, status: 'submitted' });
               // Optionally reload survey data to update UI
               await loadSurveyData();
@@ -180,20 +251,26 @@ export default function SurveyIntermediate() {
                 {
                   text: 'OK',
                   onPress: () => {
-                    navigation.reset({
-                      index: 0,
-                      routes: [
-                        {
-                          name: 'AuthenticatedDrawer',
-                          params: { initialDashboard: getDashboardScreen() },
-                        } as any,
-                      ],
-                    });
+                    try {
+                      navigation.reset({
+                        index: 0,
+                        routes: [
+                          {
+                            name: 'AuthenticatedDrawer',
+                            params: { initialDashboard: getDashboardScreen() },
+                          } as any,
+                        ],
+                      });
+                    } catch (navError) {
+                      console.error('Navigation reset error:', navError);
+                      navigation.goBack();
+                    }
                   },
                 },
               ]);
             } catch (e) {
-              Alert.alert('Error', 'Failed to mark survey as submitted.');
+              console.error('Submit error:', e);
+              Alert.alert('Error', 'Failed to mark survey as submitted. Please try again.');
             }
           },
         },
@@ -202,19 +279,37 @@ export default function SurveyIntermediate() {
   };
 
   const handleAddResidentialFloor = () => {
-    if (!surveyData) return;
-    navigation.navigate('ResidentialIntermediate', {
-      surveyId: surveyData.id,
-      surveyType: surveyData.surveyType,
-    });
+    if (!surveyData || !surveyData.id) {
+      Alert.alert('Error', 'Survey data is not available. Please try again.');
+      return;
+    }
+    
+    try {
+      navigation.navigate('ResidentialIntermediate', {
+        surveyId: surveyData.id,
+        surveyType: surveyData.surveyType,
+      });
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Error', 'Failed to navigate to floor details. Please try again.');
+    }
   };
 
   const handleAddNonResidentialFloor = () => {
-    if (!surveyData) return;
-    navigation.navigate('NonResidentialIntermediate', {
-      surveyId: surveyData.id,
-      surveyType: surveyData.surveyType,
-    });
+    if (!surveyData || !surveyData.id) {
+      Alert.alert('Error', 'Survey data is not available. Please try again.');
+      return;
+    }
+    
+    try {
+      navigation.navigate('NonResidentialIntermediate', {
+        surveyId: surveyData.id,
+        surveyType: surveyData.surveyType,
+      });
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Error', 'Failed to navigate to floor details. Please try again.');
+    }
   };
 
   const validateFloorDetails = (): boolean => {
@@ -296,8 +391,11 @@ export default function SurveyIntermediate() {
     );
   }
 
-  // Get mohallaName from params as fallback
+  // Get mohallaName from route params (passed from SurveyForm)
   const routeMohallaName = (route.params as any)?.mohallaName;
+  
+  // Also check if mohallaName exists in locationDetails (backup)
+  const locationMohallaName = surveyData?.data?.locationDetails?.mohallaName;
 
   const residentialFloorCount =
     surveyData.data && surveyData.data.residentialPropertyAssessments
@@ -307,6 +405,9 @@ export default function SurveyIntermediate() {
     surveyData.data && surveyData.data.nonResidentialPropertyAssessments
       ? surveyData.data.nonResidentialPropertyAssessments.length
       : 0;
+
+  // Use mohallaName from assignment (loaded from AsyncStorage) with fallbacks
+  const displayMohallaName = mohallaName || routeMohallaName || locationMohallaName || 'N/A';
 
   // Determine if floor details are required and show warnings
   const propertyTypeId = surveyData.data.propertyDetails?.propertyTypeId;
@@ -325,6 +426,14 @@ export default function SurveyIntermediate() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      {/* Back Button Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleBackNavigation} style={styles.backButton}>
+          <Text style={styles.backArrow}>←</Text>
+          <Text style={styles.backButtonText}>Back to Dashboard</Text>
+        </TouchableOpacity>
+      </View>
+      
       <ScrollView>
         <View style={styles.section}>
           <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#111827', marginBottom: 8 }}>
@@ -333,7 +442,7 @@ export default function SurveyIntermediate() {
           <View style={styles.infoRow}>
             <Text style={styles.label}>Mohalla Name:</Text>
             <Text style={styles.value}>
-              {surveyData.data.locationDetails?.mohallaName || routeMohallaName || 'N/A'}
+              {displayMohallaName}
             </Text>
           </View>
           <View style={styles.infoRow}>
@@ -456,6 +565,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F3F4F6',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  backArrow: {
+    fontSize: 32,
+    color: '#3B82F6',
+    fontWeight: 'bold',
+    marginRight: 12,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -483,7 +617,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 8,
     marginHorizontal: 16,
-    marginVertical: 8,
+    marginVertical: 4,
     padding: 16,
   },
   sectionTitle: {
