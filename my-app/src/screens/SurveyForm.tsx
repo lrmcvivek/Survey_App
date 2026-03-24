@@ -1474,7 +1474,7 @@ export default function SurveyForm({ route }: any) {
     aadharNumber: '',
     propertyLatitude: '',
     propertyLongitude: '',
-    assessmentYear: new Date().getFullYear().toString(),
+    assessmentYear: '2026', // Default to first dropdown option
     propertyTypeId: 0,
     buildingName: '',
     roadTypeId: 0,
@@ -1807,9 +1807,12 @@ export default function SurveyForm({ route }: any) {
         propertyLatitude: toNumber(formData.propertyLatitude),
         propertyLongitude: toNumber(formData.propertyLongitude),
         assessmentYear: formData.assessmentYear,
+        // Include propertyTypeId for Residential/Mixed (required) and Non-Residential (optional, only if selected)
         ...(surveyTypeKey === 'Residential' || surveyTypeKey === 'Mixed'
           ? { propertyTypeId: formData.propertyTypeId }
-          : {}),
+          : surveyTypeKey === 'Non-Residential' && formData.propertyTypeId
+            ? { propertyTypeId: formData.propertyTypeId }
+            : {}),
         buildingName: formData.buildingName,
         roadTypeId: formData.roadTypeId,
         constructionYear: formData.constructionYear,
@@ -2200,7 +2203,16 @@ export default function SurveyForm({ route }: any) {
             value={String(formData.propertyLongitude ?? '')}
             keyboardType="numeric"
           />
-          <FormInput label="Assessment Year" value={formData.assessmentYear} editable={false} />
+          <FormDropdown
+            label="Assessment Year"
+            items={[
+              { label: '2026', value: '2026' },
+              { label: '2027', value: '2027' },
+              { label: '2028', value: '2028' },
+            ]}
+            onValueChange={(value: string | number) => handleInputChange('assessmentYear', String(value))}
+            value={String(formData.assessmentYear)}
+          />
           {/* Property Type: For all survey types, but required only for Residential/Mixed */}
           <FormDropdown
             label={`Property Type`}
@@ -2350,13 +2362,14 @@ export default function SurveyForm({ route }: any) {
                 onValueChange={(value: string | number) => handleInputChange('pollution', value)}
                 value={formData.pollution}
               />
-              <FormInput
-                label="Pollution Measurement"
-                onChangeText={(value: string) =>
-                  handleInputChange('pollutionMeasurementTaken', value)
-                }
-                value={formData.pollutionMeasurementTaken}
-              />
+              {formData.pollution === 'YES' && (
+                <FormInput
+                  label="Pollution Measurement"
+                  required
+                  onChangeText={(value: string) => handleInputChange('pollutionMeasurementTaken', value)}
+                  value={formData.pollutionMeasurementTaken}
+                />
+              )}
             </>
           )}
 
