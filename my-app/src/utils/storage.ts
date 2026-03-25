@@ -182,24 +182,13 @@ export const syncSurveysToBackend = async (
       // Deep clone the survey data to avoid mutating local storage
       const payload = JSON.parse(JSON.stringify(survey.data));
       
-      // For Non-Residential surveys, ensure propertyTypeId is removed from all locations
-      // This handles both new surveys (where it's already excluded) and old surveys (where it might exist)
+      // For Non-Residential surveys, remove propertyTypeId from locationDetails only if it's null/undefined
+      // If propertyTypeId has a value (e.g., PLOT/LAND), preserve it for backend submission
       if (survey.surveyType === 'Non-Residential') {
-        // Remove from locationDetails if it exists there
         if (payload.locationDetails) {
-          delete payload.locationDetails.propertyTypeId;
-        }
-        // Remove from surveyDetails if it exists there
-        if (payload.surveyDetails) {
-          delete payload.surveyDetails.propertyTypeId;
-        }
-        // Remove from propertyDetails if it exists there
-        if (payload.propertyDetails) {
-          delete payload.propertyDetails.propertyTypeId;
-        }
-        // Remove from otherDetails if it exists there
-        if (payload.otherDetails) {
-          delete payload.otherDetails.propertyTypeId;
+          if (payload.locationDetails.propertyTypeId === null || payload.locationDetails.propertyTypeId === undefined) {
+            delete payload.locationDetails.propertyTypeId;
+          }
         }
       }
       
