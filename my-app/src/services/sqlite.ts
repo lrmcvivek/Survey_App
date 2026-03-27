@@ -3,9 +3,13 @@ import { openDatabaseAsync, type SQLiteDatabase } from 'expo-sqlite';
 export type SurveyImageRow = {
   id?: number;
   surveyId: string | null;
-  photoUri: string;
+  photoUri: string; // local file path
   label: string; // e.g., 'khasra' | 'front' | 'left' | 'right' | 'other1' | 'other2'
   timestamp: string; // ISO string
+  status?: 'pending' | 'uploading' | 'synced' | 'failed'; // upload status
+  retryCount?: number; // number of failed attempts
+  provider?: 'cloudinary' | 'gcp' | null; // storage provider used
+  uploadedUrl?: string | null; // URL after successful upload
 };
 
 let dbPromise: Promise<SQLiteDatabase> | null = null;
@@ -81,21 +85,31 @@ export const initializeDatabase = async (): Promise<void> => {
         throw new Error('Database connection not available');
       }
       
-      console.log('[SQLite] Creating SurveyImages table...');
+      console.log('[SQLite] Dropping existing SurveyImages table if exists...');
+      // Drop old table to ensure clean schema (testing phase only)
+      await db.execAsync(`DROP TABLE IF EXISTS SurveyImages;`);
       
+      console.log('[SQLite] Creating SurveyImages table with new schema...');
       await db.execAsync(
-        `CREATE TABLE IF NOT EXISTS SurveyImages (
+        `CREATE TABLE SurveyImages (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           surveyId TEXT,
           photoUri TEXT NOT NULL,
           label TEXT NOT NULL,
-          timestamp TEXT NOT NULL
+          timestamp TEXT NOT NULL,
+          status TEXT DEFAULT 'pending',
+          retryCount INTEGER DEFAULT 0,
+          provider TEXT,
+          uploadedUrl TEXT
         );`
       );
       
-      console.log('[SQLite] Creating index...');
+      console.log('[SQLite] Creating indexes...');
       await db.execAsync(
-        `CREATE INDEX IF NOT EXISTS idx_survey_images_surveyId ON SurveyImages(surveyId);`
+        `CREATE INDEX idx_survey_images_surveyId ON SurveyImages(surveyId);`
+      );
+      await db.execAsync(
+        `CREATE INDEX idx_survey_images_status ON SurveyImages(status);`
       );
       
       console.log('[SQLite] Testing table access...');
@@ -127,8 +141,8 @@ export const insertSurveyImage = async (row: SurveyImageRow): Promise<number> =>
         await initializeDatabase();
         
         const res: any = await db.runAsync(
-          `INSERT INTO SurveyImages (surveyId, photoUri, label, timestamp) VALUES (?, ?, ?, ?);`,
-          [row.surveyId, row.photoUri, row.label, row.timestamp]
+          `INSERT INTO SurveyImages (surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+          [row.surveyId, row.photoUri, row.label, row.timestamp, row.status || 'pending', row.retryCount || 0, row.provider || null, row.uploadedUrl || null]
         );
         
         const insertId = res?.lastInsertRowId || 0;
@@ -156,11 +170,11 @@ export const getImagesBySurveyId = async (surveyId: string | null): Promise<Surv
         
         if (surveyId === null) {
           return await db.getAllAsync<SurveyImageRow>(
-            `SELECT id, surveyId, photoUri, label, timestamp FROM SurveyImages WHERE surveyId IS NULL ORDER BY timestamp DESC;`
+            `SELECT id, surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl FROM SurveyImages WHERE surveyId IS NULL ORDER BY timestamp DESC;`
           );
         } else {
           return await db.getAllAsync<SurveyImageRow>(
-            `SELECT id, surveyId, photoUri, label, timestamp FROM SurveyImages WHERE surveyId = ? ORDER BY timestamp DESC;`,
+            `SELECT id, surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl FROM SurveyImages WHERE surveyId = ? ORDER BY timestamp DESC;`,
             [surveyId]
           );
         }
@@ -173,6 +187,85 @@ export const getImagesBySurveyId = async (surveyId: string | null): Promise<Surv
   }
   
   console.warn('Database not available, returning empty image list');
+  return [];
+};
+
+// New helper functions for upload status management
+export const updateImageUploadStatus = async (
+  imageId: number, 
+  status: 'pending' | 'uploading' | 'synced' | 'failed',
+  uploadedUrl?: string | null,
+  provider?: 'cloudinary' | 'gcp' | null
+): Promise<void> => {
+  if (shouldAttemptDatabase()) {
+    try {
+      const db = await getDbAsync();
+      if (db) {
+        await initializeDatabase();
+        
+        if (status === 'failed') {
+          // Increment retry count on failure
+          await db.runAsync(
+            `UPDATE SurveyImages SET status = ?, uploadedUrl = ?, provider = ?, retryCount = retryCount + 1 WHERE id = ?;`,
+            [status, uploadedUrl ?? null, provider ?? null, imageId]
+          );
+        } else {
+          await db.runAsync(
+            `UPDATE SurveyImages SET status = ?, uploadedUrl = ?, provider = ? WHERE id = ?;`,
+            [status, uploadedUrl ?? null, provider ?? null, imageId]
+          );
+        }
+        console.log(`Image ${imageId} status updated to: ${status}`);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to update image upload status:', error);
+    }
+  }
+  
+  console.warn('Database not available for status update');
+};
+
+export const getImagesByStatus = async (status: 'pending' | 'uploading' | 'synced' | 'failed'): Promise<SurveyImageRow[]> => {
+  if (shouldAttemptDatabase()) {
+    try {
+      const db = await getDbAsync();
+      if (db) {
+        await initializeDatabase();
+        
+        return await db.getAllAsync<SurveyImageRow>(
+          `SELECT id, surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl FROM SurveyImages WHERE status = ? ORDER BY timestamp ASC;`,
+          [status]
+        );
+      }
+    } catch (error) {
+      console.error('Database query failed:', error);
+      isDatabaseCorrupted = true;
+      lastErrorTime = Date.now();
+    }
+  }
+  
+  return [];
+};
+
+export const getPendingAndFailedImages = async (): Promise<SurveyImageRow[]> => {
+  if (shouldAttemptDatabase()) {
+    try {
+      const db = await getDbAsync();
+      if (db) {
+        await initializeDatabase();
+        
+        return await db.getAllAsync<SurveyImageRow>(
+          `SELECT id, surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl FROM SurveyImages WHERE status IN ('pending', 'failed') ORDER BY timestamp ASC;`
+        );
+      }
+    } catch (error) {
+      console.error('Database query failed:', error);
+      isDatabaseCorrupted = true;
+      lastErrorTime = Date.now();
+    }
+  }
+  
   return [];
 };
 

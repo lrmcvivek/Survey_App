@@ -15,6 +15,8 @@ import mohallaRoutes from './routes/mohallaRoutes';
 import qcRoutes from './routes/qcRoutes';
 import reportsRoutes from './routes/reportsRoutes';
 import assignmentRoutes from './routes/assignmentRoutes';
+import imageRoutes from './routes/imageRoutes';
+import devRoutes from './routes/devRoutes';
 
 
 
@@ -139,6 +141,12 @@ app.use('/api/reports', authenticateJWT, reportsRoutes);
 
 // Protected routes - Assignments
 app.use('/api/assignments', authenticateJWT, assignmentRoutes);
+
+// Image upload routes (protected)
+app.use('/api/images', authenticateJWT, imageRoutes);
+
+// Developer toggle routes (hidden, protected)
+app.use('/api/dev', devRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {

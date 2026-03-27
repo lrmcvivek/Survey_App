@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "PTMS",
+    "slug": "my-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a237e"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ptms.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app needs access to camera to capture photos for surveys.",
+        "NSMicrophoneUsageDescription": "This app needs access to microphone for video recording.",
+        "NSLocationWhenInUseUsageDescription": "This app needs access to your location for property survey verification."
+      }
+    },
+    "android": {
+      "usesCleartextTraffic": true,
+      "package": "com.ptms.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundColor": "#1a237e",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "EXPO_PUBLIC_API_BASE_URL": "http://192.168.18.184:4000/api"
+    },
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "plugins": [
+      "expo-sqlite",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow PTMS to access your camera",
+          "microphonePermission": "Allow PTMS to access your microphone",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow PTMS to use your location for property verification."
+        }
+      ]
+    ]
+  }
+}
