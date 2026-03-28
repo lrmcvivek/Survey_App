@@ -14,8 +14,8 @@ function cleanAssessment<T extends object>(assessment: T): Omit<T, 'id'> {
   return rest;
 }
 
-export const createSurvey = async (surveyData: CreateSurveyDto, uploadedById: string) => {
-  const { surveyDetails, propertyDetails, ownerDetails, locationDetails, otherDetails, residentialPropertyAssessments, nonResidentialPropertyAssessments } = surveyData;
+export const createSurvey = async (surveyData: CreateSurveyDto & { propertyAttachments?: Record<string, string> }, uploadedById: string) => {
+  const { surveyDetails, propertyDetails, ownerDetails, locationDetails, otherDetails, residentialPropertyAssessments, nonResidentialPropertyAssessments, propertyAttachments } = surveyData;
 
   // Clean residential assessments: remove 'id' and undefined fields
   const cleanResidentialAssessments = residentialPropertyAssessments
@@ -135,6 +135,21 @@ export const createSurvey = async (surveyData: CreateSurveyDto, uploadedById: st
             remarks: otherDetails.remarks ?? null,
           },
         },
+        // Create property attachments if image URLs are provided
+        propertyAttachments: propertyAttachments ? {
+          create: {
+            image1Url: propertyAttachments.image1Url || null,
+            image2Url: propertyAttachments.image2Url || null,
+            image3Url: propertyAttachments.image3Url || null,
+            image4Url: propertyAttachments.image4Url || null,
+            image5Url: propertyAttachments.image5Url || null,
+            image6Url: propertyAttachments.image6Url || null,
+            image7Url: propertyAttachments.image7Url || null,
+            image8Url: propertyAttachments.image8Url || null,
+            image9Url: propertyAttachments.image9Url || null,
+            image10Url: propertyAttachments.image10Url || null,
+          }
+        } : undefined,
         residentialPropertyAssessments: cleanResidentialAssessments && cleanResidentialAssessments.length > 0
           ? { create: cleanResidentialAssessments as any }
           : undefined,
@@ -148,6 +163,7 @@ export const createSurvey = async (surveyData: CreateSurveyDto, uploadedById: st
         ownerDetails: true,
         locationDetails: true,
         otherDetails: true,
+        propertyAttachments: true, // Include property attachments in response
         residentialPropertyAssessments: true,
         nonResidentialPropertyAssessments: true,
       },

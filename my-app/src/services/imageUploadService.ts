@@ -31,11 +31,18 @@ export interface SurveyUploadResult {
  */
 export const uploadSingleImage = async (
   imageId: number,
-  localPath: string
+  localPath: string,
+  geographicData?: {
+    ulbName?: string;
+    zoneName?: string;
+    wardNumber?: string;
+    mohallaName?: string;
+  }
 ): Promise<ImageUploadResult> => {
   try {
     console.log(`[IMAGE] 📤 Starting upload for image ID: ${imageId}`);
     console.log('[IMAGE] 📍 Local path:', localPath);
+    console.log('[IMAGE] 📍 Geographic data for upload:', geographicData);
     
     // Update status to uploading
     console.log('[IMAGE] 🔄 Updating status to: uploading');
@@ -56,7 +63,7 @@ export const uploadSingleImage = async (
     
     // Perform upload
     console.log('[IMAGE] 🚀 Initiating upload to cloud...');
-    const result = await provider.uploadImage(localPath);
+    const result = await provider.uploadImage(localPath, geographicData);
     console.log('[IMAGE] ✅ Upload successful!');
     console.log('[IMAGE] 🔗 URL:', result.url);
     console.log('[IMAGE] ☁️ Provider:', result.provider);
@@ -107,18 +114,40 @@ export const uploadSurveyImages = async (
   surveyId: string
 ): Promise<SurveyUploadResult> => {
   try {
+    console.log(`[SurveyImageUpload] ════════════════════════════════`);
     console.log(`[SurveyImageUpload] Starting image upload for survey: ${surveyId}`);
+    console.log(`[SurveyImageUpload] Timestamp: ${new Date().toISOString()}`);
+    console.log(`[SurveyImageUpload] ════════════════════════════════`);
     
     // Lock provider for this sync session
+    console.log('[SurveyImageUpload] 🔒 Locking provider for sync...');
     await lockProviderForSync();
+    console.log('[SurveyImageUpload] ✅ Provider locked');
     
     // Get all pending and failed images for this survey
+    console.log('[SurveyImageUpload] 📊 Querying database for pending/failed images...');
     const allImages = await getPendingAndFailedImages();
-    const surveyImages = allImages.filter(img => img.surveyId === surveyId);
+    console.log(`[SurveyImageUpload] Total pending/failed images in DB: ${allImages?.length || 0}`);
     
-    console.log(`[SurveyImageUpload] Found ${surveyImages.length} images to upload`);
+    // Filter by surveyId
+    const surveyImages = allImages?.filter(img => img.surveyId === surveyId) || [];
+    console.log(`[SurveyImageUpload] Images for THIS survey (${surveyId}): ${surveyImages.length}`);
+    
+    if (surveyImages.length > 0) {
+      console.log('[SurveyImageUpload] 📋 Image details:');
+      surveyImages.forEach((img, idx) => {
+        console.log(`  [${idx + 1}] ID: ${img.id}, Label: ${img.label}, Status: ${img.status}, SurveyId: ${img.surveyId}`);
+      });
+    }
     
     if (surveyImages.length === 0) {
+      console.warn('[SurveyImageUpload] ⚠️ No images found for this survey!');
+      console.warn('[SurveyImageUpload] Possible causes:');
+      console.warn('[SurveyImageUpload]   1. Images were never inserted into database');
+      console.warn('[SurveyImageUpload]   2. SurveyId mismatch between insert and query');
+      console.warn('[SurveyImageUpload]   3. Status was changed from "pending" to something else');
+      console.warn('[SurveyImageUpload]   4. Database query failed silently');
+      
       releaseProviderLock();
       return {
         surveyId,
@@ -133,13 +162,24 @@ export const uploadSurveyImages = async (
     const MAX_PARALLEL = 3;
     const results: ImageUploadResult[] = [];
     
+    console.log(`[SurveyImageUpload] 🚀 Starting upload of ${surveyImages.length} images in batches of ${MAX_PARALLEL}...`);
+    
     // Process in batches
     for (let i = 0; i < surveyImages.length; i += MAX_PARALLEL) {
       const batch = surveyImages.slice(i, i + MAX_PARALLEL);
-      console.log(`[SurveyImageUpload] Processing batch ${Math.floor(i / MAX_PARALLEL) + 1}`);
+      console.log(`[SurveyImageUpload] Processing batch ${Math.floor(i / MAX_PARALLEL) + 1}/${Math.ceil(surveyImages.length / MAX_PARALLEL)}`);
       
       const batchResults = await Promise.all(
-        batch.map(img => uploadSingleImage(img.id!, img.photoUri))
+        batch.map(img => uploadSingleImage(
+          img.id!, 
+          img.photoUri,
+          {
+            ulbName: img.ulbName || undefined,
+            zoneName: img.zoneName || undefined,
+            wardNumber: img.wardNumber || undefined,
+            mohallaName: img.mohallaName || undefined,
+          }
+        ))
       );
       
       results.push(...batchResults);
@@ -154,19 +194,24 @@ export const uploadSurveyImages = async (
     const successful = results.filter(r => r.success);
     const failed = results.filter(r => !r.success);
     
+    console.log(`[SurveyImageUpload] 📊 Upload results: ${successful.length} succeeded, ${failed.length} failed`);
+    
     // Create URL mapping for survey submission
     const imageUrls: Record<string, string> = {};
     successful.forEach(result => {
       const image = surveyImages.find(img => img.id === result.imageId);
       if (image) {
         imageUrls[image.label] = result.url!;
+        console.log(`[SurveyImageUpload] ✅ Mapped ${image.label} → ${result.url}`);
       }
     });
     
     // Release provider lock
     releaseProviderLock();
-    
-    console.log(`[SurveyImageUpload] Completed: ${successful.length} succeeded, ${failed.length} failed`);
+    console.log('[SurveyImageUpload] 🔓 Provider lock released');
+    console.log(`[SurveyImageUpload] ════════════════════════════════`);
+    console.log(`[SurveyImageUpload] Upload completed successfully`);
+    console.log(`[SurveyImageUpload] ════════════════════════════════`);
     
     return {
       surveyId,
@@ -176,7 +221,8 @@ export const uploadSurveyImages = async (
       imageUrls,
     };
   } catch (error) {
-    console.error(`[SurveyImageUpload] Critical error for survey ${surveyId}:`, error);
+    console.error(`[SurveyImageUpload] ❌ Critical error for survey ${surveyId}:`, error);
+    console.error(`[SurveyImageUpload] Error stack:`, error instanceof Error ? error.stack : 'No stack');
     releaseProviderLock(); // Ensure lock is released
     
     return {

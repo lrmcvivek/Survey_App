@@ -545,16 +545,16 @@ model NonResidentialPropertyAssessment {
 
 model PropertyAttachmentDetails {
   surveyUniqueCode String        @db.Uuid
-  image1Url        String?       @db.VarChar(50)
-  image2Url        String?       @db.VarChar(50)
-  image3Url        String?       @db.VarChar(50)
-  image4Url        String?       @db.VarChar(50)
-  image5Url        String?       @db.VarChar(50)
-  image6Url        String?       @db.VarChar(50)
-  image7Url        String?       @db.VarChar(50)
-  image8Url        String?       @db.VarChar(50)
-  image9Url        String?       @db.VarChar(50)
-  image10Url       String?       @db.VarChar(50)
+  image1Url        String?       @db.VarChar(255)
+  image2Url        String?       @db.VarChar(255)
+  image3Url        String?       @db.VarChar(255)
+  image4Url        String?       @db.VarChar(255)
+  image5Url        String?       @db.VarChar(255)
+  image6Url        String?       @db.VarChar(255)
+  image7Url        String?       @db.VarChar(255)
+  image8Url        String?       @db.VarChar(255)
+  image9Url        String?       @db.VarChar(255)
+  image10Url       String?       @db.VarChar(255)
   surveyImagesId   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   survey           SurveyDetails @relation(fields: [surveyUniqueCode], references: [surveyUniqueCode])
 

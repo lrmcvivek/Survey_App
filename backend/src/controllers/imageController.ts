@@ -62,6 +62,16 @@ export const uploadImage = async (req: Request, res: Response) => {
 
     console.log('[ImageUpload] Received file:', req.file.filename);
 
+    // Extract geographic data from request body (sent from mobile app)
+    const geographicData = {
+      ulbName: req.body.ulbName || undefined,
+      zoneName: req.body.zoneName || undefined,
+      wardNumber: req.body.wardNumber || undefined,
+      mohallaName: req.body.mohallaName || undefined,
+    };
+    
+    console.log('[ImageUpload] Geographic data:', geographicData);
+
     // Determine which provider to use (default to Cloudinary for now)
     // In production, this could come from database config or environment
     const provider = process.env.IMAGE_STORAGE_PROVIDER || 'cloudinary';
@@ -80,7 +90,11 @@ export const uploadImage = async (req: Request, res: Response) => {
         console.log('[ImageUpload] GCP upload successful:', result.publicUrl);
       } else {
         // Upload to Cloudinary (default)
-        const result: CloudinaryUploadResult = await uploadToCloudinary(req.file.path);
+        const result: CloudinaryUploadResult = await uploadToCloudinary(
+          req.file.path,
+          'ptms_survey_images',
+          geographicData
+        );
         uploadResult = {
           url: result.secureUrl,
           provider: 'cloudinary',
@@ -128,6 +142,14 @@ export const uploadMultipleImages = async (req: Request, res: Response) => {
     const files = req.files as Express.Multer.File[];
     console.log(`[ImageUpload] Received ${files.length} files`);
 
+    // Extract geographic data (applies to all images in batch)
+    const geographicData = {
+      ulbName: req.body.ulbName || undefined,
+      zoneName: req.body.zoneName || undefined,
+      wardNumber: req.body.wardNumber || undefined,
+      mohallaName: req.body.mohallaName || undefined,
+    };
+
     // Determine provider
     const provider = process.env.IMAGE_STORAGE_PROVIDER || 'cloudinary';
 
@@ -137,10 +159,10 @@ export const uploadMultipleImages = async (req: Request, res: Response) => {
           let url: string;
           
           if (provider === 'gcp') {
-            const result: GCPUploadResult = await uploadToGCP(file.path);
+            const result: GCPUploadResult = await uploadToGCP(file.path, 'ptms_survey_images', geographicData);
             url = result.publicUrl;
           } else {
-            const result: CloudinaryUploadResult = await uploadToCloudinary(file.path);
+            const result: CloudinaryUploadResult = await uploadToCloudinary(file.path, 'ptms_survey_images', geographicData);
             url = result.secureUrl;
           }
           

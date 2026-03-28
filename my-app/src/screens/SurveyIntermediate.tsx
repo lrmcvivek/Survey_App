@@ -81,15 +81,24 @@ export default function SurveyIntermediate() {
     try {
       // Get the survey ID from route params or load the latest ongoing survey
       const surveyId = (route.params as any)?.surveyId;
+      console.log('[SurveyIntermediate] Loading survey data...');
+      console.log('[SurveyIntermediate] Route surveyId:', surveyId);
+      
       let survey: SurveyData | null = null;
       const allSurveys = await getUnsyncedSurveys();
+      console.log('[SurveyIntermediate] Found', allSurveys.length, 'unsynced surveys');
+      
       if (surveyId) {
         survey = allSurveys.find((s: SurveyData) => s.id === surveyId) || null;
+        console.log('[SurveyIntermediate] Survey found by ID:', survey ? survey.id : 'NOT FOUND');
       } else {
         // Load the latest ongoing survey
         survey = allSurveys.find((s: SurveyData) => !s.synced) || null;
+        console.log('[SurveyIntermediate] Latest ongoing survey:', survey ? survey.id : 'NONE');
       }
+      
       setSurveyData(survey);
+      console.log('[SurveyIntermediate] Survey data loaded successfully');
     } catch (error) {
       console.error('Error loading survey data:', error);
       Alert.alert('Error', 'Failed to load survey data');

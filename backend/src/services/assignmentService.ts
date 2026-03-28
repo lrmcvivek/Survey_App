@@ -140,12 +140,51 @@ export const bulkAssign = async (data: any) => {
 
 // Get all assignments for a user
 export const getAssignmentsByUser = async (userId: string) => {
+  // First, let's directly query WardMaster to see what's in the DB
+  const sampleWard = await prisma.wardMaster.findFirst({
+    where: { wardName: 'Test Ward' },
+    select: {
+      wardId: true,
+      wardName: true,
+      newWardNumber: true,
+      oldWardNumber: true,
+      wardCode: true,
+    }
+  });
+  console.log('[AssignmentService] Direct WardMaster query for "Test Ward":');
+  console.log('  Result:', JSON.stringify(sampleWard, null, 2));
+  
   const assignments = await prisma.surveyorAssignment.findMany({
     where: { userId },
     include: {
-      ward: true,
+      ward: {
+        select: {
+          wardId: true,
+          wardName: true,
+          newWardNumber: true,
+          oldWardNumber: true,
+          wardCode: true,
+          isActive: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true,
+        }
+      },
     },
   });
+  
+  // DEBUG: Log what we're getting from database
+  console.log('[AssignmentService] Raw assignments from DB:');
+  assignments.forEach(a => {
+    console.log(`  Assignment ID: ${a.assignmentId}`);
+    console.log(`    Ward ID: ${a.wardId}`);
+    console.log(`    Ward object keys:`, Object.keys(a.ward));
+    console.log(`    Ward.newWardNumber: ${a.ward.newWardNumber}`);
+    console.log(`    Ward.oldWardNumber: ${a.ward.oldWardNumber}`);
+    console.log(`    Ward.wardName: ${a.ward.wardName}`);
+    console.log(`    Full Ward object:`, JSON.stringify(a.ward));
+  });
+  
   // For each assignment, fetch mohalla details
   const result = await Promise.all(assignments.map(async (a) => {
     const mohallas = await prisma.mohallaMaster.findMany({
