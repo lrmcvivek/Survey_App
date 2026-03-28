@@ -35,13 +35,18 @@ export const storeImageForSurvey = async (
   label: string
 ): Promise<string> => {
   try {
-    console.log(`Starting safe image storage: ${label} for survey ${surveyId}`);
+    console.log(`[IMAGE] 💾 Starting safe image storage`);
+    console.log(`[IMAGE] 📋 Survey ID: ${surveyId}`);
+    console.log(`[IMAGE] 🏷️ Label: ${label}`);
+    console.log(`[IMAGE] 📍 Source URI: ${tempImageUri}`);
     
     // Step 1: Ensure directory exists
     try {
+      console.log('[IMAGE] 📁 Checking survey images directory...');
       await ensureSurveyImageDirectory();
+      console.log('[IMAGE] ✅ Directory check completed');
     } catch (dirError) {
-      console.error('Directory creation failed:', dirError);
+      console.error('[IMAGE] ⚠️ Directory creation failed:', dirError);
       // Continue with temp URI if directory creation fails
       return tempImageUri;
     }
@@ -50,38 +55,54 @@ export const storeImageForSurvey = async (
     const timestamp = Date.now();
     const filename = `${surveyId}_${label}_${timestamp}.jpg`;
     const permanentUri = `${SURVEY_IMAGES_DIR}${filename}`;
+    console.log('[IMAGE] 📝 Generated permanent filename:', filename);
     
     // Step 3: Copy file to permanent location
     try {
+      console.log('[IMAGE] 📄 Copying file to permanent storage...');
       await FileSystem.copyAsync({
         from: tempImageUri,
         to: permanentUri,
       });
-      console.log(`File copied to permanent storage: ${permanentUri}`);
+      console.log('[IMAGE] ✅ File copied successfully to:', permanentUri);
     } catch (copyError) {
-      console.error('File copy failed:', copyError);
+      console.error('[IMAGE] ❌ File copy failed:', copyError);
       // Return temp URI if copy fails
       return tempImageUri;
     }
     
     // Step 4: Store URI in database (non-critical, can fail)
     try {
+      console.log('[IMAGE] 🗄️ Storing metadata in SQLite...');
       await insertSurveyImage({
         surveyId,
         photoUri: permanentUri,
         label,
         timestamp: new Date().toISOString(),
+        status: 'pending', // Set initial status as pending upload
+        retryCount: 0,
+        provider: null,
+        uploadedUrl: null,
       });
-      console.log(`Database record created for: ${permanentUri}`);
+      console.log('[IMAGE] ✅ Database record created successfully');
     } catch (dbError) {
-      console.error('Database storage failed (non-critical):', dbError);
+      console.error('[IMAGE] ⚠️ Database storage failed (non-critical):', dbError);
       // Continue with file storage even if database fails
     }
+    
+    console.log('[IMAGE] ✨ Image storage completed successfully');
+    console.log('[IMAGE] Summary:', {
+      surveyId,
+      label,
+      permanentUri,
+      status: 'stored',
+    });
     
     return permanentUri;
     
   } catch (error) {
-    console.error(`Image storage failed for ${label}:`, error);
+    console.error(`[IMAGE] ❌ Image storage failed for ${label}:`, error);
+    console.error('[IMAGE] Error details:', error instanceof Error ? error.message : 'Unknown error');
     // Return original URI as fallback
     return tempImageUri;
   }
@@ -111,34 +132,44 @@ export const getImagesForSurvey = async (surveyId: string | null): Promise<{ lab
  */
 export const deleteImagesForSurvey = async (surveyId: string): Promise<void> => {
   try {
-    console.log(`Starting image cleanup for survey: ${surveyId}`);
+    console.log(`[IMAGE] 🗑️ Starting image cleanup for survey: ${surveyId}`);
     
     // Get all image records from database first
+    console.log('[IMAGE] 🔍 Fetching image records from database...');
     const imageRecords = await getImagesBySurveyId(surveyId);
+    console.log('[IMAGE] 📊 Found', imageRecords.length, 'image(s) to delete');
     
     // Delete physical files from storage
     const deletePromises = imageRecords.map(async (record) => {
       try {
+        console.log('[IMAGE] 📄 Checking file:', record.photoUri);
         const fileInfo = await FileSystem.getInfoAsync(record.photoUri);
         if (fileInfo.exists) {
+          console.log('[IMAGE] 🗑️ Deleting file:', record.photoUri);
           await FileSystem.deleteAsync(record.photoUri, { idempotent: true });
-          console.log(`Deleted image file: ${record.photoUri}`);
+          console.log('[IMAGE] ✅ Deleted image file:', record.photoUri);
+        } else {
+          console.log('[IMAGE] ⚠️ File not found (already deleted?):', record.photoUri);
         }
       } catch (fileError) {
-        console.error(`Failed to delete image file ${record.photoUri}:`, fileError);
+        console.error('[IMAGE] ❌ Failed to delete image file', record.photoUri, ':', fileError);
       }
     });
     
     // Wait for all file deletions to complete
+    console.log('[IMAGE] ⏳ Waiting for all file deletions to complete...');
     await Promise.allSettled(deletePromises);
     
     // Delete records from SQLite database
+    console.log('[IMAGE] 🗄️ Deleting SQLite records...');
     await deleteImagesBySurveyId(surveyId);
+    console.log('[IMAGE] ✅ Database records deleted');
     
-    console.log(`Image cleanup completed for survey: ${surveyId}`);
+    console.log('[IMAGE] ✨ Image cleanup completed for survey:', surveyId);
     
   } catch (error) {
-    console.error(`Failed to delete images for survey ${surveyId}:`, error);
+    console.error(`[IMAGE] ❌ Failed to delete images for survey ${surveyId}:`, error);
+    console.error('[IMAGE] Error details:', error instanceof Error ? error.message : 'Unknown error');
     throw error;
   }
 };

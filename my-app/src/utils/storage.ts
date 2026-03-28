@@ -4,6 +4,7 @@ import LZString from 'lz-string';
 import api from '../api/axiosConfig';
 import { cleanupSurveyImagesBySurveyId } from '../services/imageStorage';
 import { deleteImagesForSurvey } from '../services/imageStorage';
+import { uploadSurveyImages } from '../services/imageUploadService';
 
 const UNSYNCED_SURVEYS_KEY = 'unsyncedSurveys';
 const MASTER_DATA_KEY = 'masterData';
@@ -179,8 +180,52 @@ export const syncSurveysToBackend = async (
   }
   for (const survey of unsynced) {
     try {
+      console.log(`[Sync] Starting sync for survey: ${survey.id}`);
+      
+      // NEW STEP 1: Upload all images FIRST (before survey submission)
+      console.log(`[Sync] Uploading images for survey ${survey.id}...`);
+      const imageUploadResult = await uploadSurveyImages(survey.id);
+      
+      if (!imageUploadResult.allImagesUploaded) {
+        console.warn(`[Sync] Image upload incomplete for survey ${survey.id}: ${imageUploadResult.uploadedCount} uploaded, ${imageUploadResult.failedCount} failed`);
+        // Continue with survey submission even if some images failed
+        // The failed images can be retried in next sync
+      } else {
+        console.log(`[Sync] All ${imageUploadResult.uploadedCount} images uploaded successfully`);
+      }
+      
       // Deep clone the survey data to avoid mutating local storage
       const payload = JSON.parse(JSON.stringify(survey.data));
+      
+      // Attach uploaded image URLs to the payload
+      // These will be stored in propertyAttachments table
+      if (Object.keys(imageUploadResult.imageUrls).length > 0) {
+        console.log(`[Sync] Attaching ${Object.keys(imageUploadResult.imageUrls).length} image URLs to survey payload`);
+        
+        // Map image labels to backend field names
+        const imageMapping: Record<string, string> = {
+          'khasra': 'image1Url',
+          'front': 'image2Url',
+          'left': 'image3Url',
+          'right': 'image4Url',
+          'other1': 'image5Url',
+          'other2': 'image6Url',
+        };
+        
+        // Ensure propertyAttachments exists in payload
+        if (!payload.propertyAttachments) {
+          payload.propertyAttachments = {};
+        }
+        
+        // Add each uploaded URL to the appropriate field
+        Object.entries(imageUploadResult.imageUrls).forEach(([label, url]) => {
+          const fieldName = imageMapping[label];
+          if (fieldName) {
+            payload.propertyAttachments[fieldName] = url;
+            console.log(`[Sync] Mapped ${label} → ${fieldName}: ${url}`);
+          }
+        });
+      }
       
       // For Non-Residential surveys, remove propertyTypeId from locationDetails only if it's null/undefined
       // If propertyTypeId has a value (e.g., PLOT/LAND), preserve it for backend submission
@@ -192,6 +237,8 @@ export const syncSurveysToBackend = async (
         }
       }
       
+      // STEP 2: Submit survey with attached image URLs
+      console.log(`[Sync] Submitting survey ${survey.id} to backend...`);
       const res = await api.post('/surveys/addSurvey', payload);
       if (res.status === 200 || res.status === 201) {
         // Survey synced successfully - remove from local storage and delete images
@@ -214,6 +261,7 @@ export const syncSurveysToBackend = async (
         }
         success++;
       } else {
+        console.error(`[Sync] Backend returned non-success status for survey ${survey.id}`);
         failed++;
       }
     } catch (e) {

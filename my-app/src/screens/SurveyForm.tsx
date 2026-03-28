@@ -28,12 +28,10 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as ImageManipulator from 'expo-image-manipulator';
 import { Feather } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
-import { insertImagesForSurvey } from '../services/imageStorage';
-import { insertSurveyImage } from '../services/sqlite';
-import { storeImageForSurvey } from '../services/imageStorage';
+import { storeImageForSurvey, deleteImagesForSurvey } from '../services/imageStorage';
+import { compressImageAdaptive } from '../services/imageCompression';
 import React from 'react';
 
 // Local Error Boundary for Camera Modal
@@ -181,14 +179,15 @@ interface FormData {
   sewerageLineWithin100Meters: string;
   disposalTypeId: number;
   totalPlotArea: string | number;
-  builtupAreaOfGroundFloor: string | number;
+  builtupAreaOfGroundFloor: number | string;
   remarks: string;
 }
 
 export default function SurveyForm({ route }: any) {
-  // Add mount logging to track component lifecycle
-  const componentId = useRef(`SurveyForm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-  console.log(`📱 SurveyForm mounting [${componentId.current}] with params:`, route?.params);
+  // Component ID for debugging
+  const componentId = useRef(`SurveyForm_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`);
+  
+  // Track component mount status for safe operations (declared with other refs below)
   
   // CRASH DEBUGGING: Add global error handler for this component
   useEffect(() => {
@@ -231,16 +230,20 @@ export default function SurveyForm({ route }: any) {
   type SurveyTypeKey = 'Residential' | 'Non-Residential' | 'Mixed';
   const surveyTypeKey = surveyType as SurveyTypeKey;
   const navigation = useNavigation();
-  console.log(`📱 Navigation stack info [${componentId.current}]:`, navigation?.getState?.());
+  //console.log(`📱 Navigation stack info [${componentId.current}]:`, navigation?.getState?.());
+  
+  // Capture counter for debugging
+  const captureCount = useRef(0);
   
   // All refs first (before any state)
   const scrollViewRef = useRef<ScrollView>(null);
   const fieldRefs = useRef<{ [key: string]: View | null }>({});
   const cameraViewRef = useRef<CameraView | null>(null);
   const navigationBlocked = useRef(true);
-  const componentMounted = useRef(true);
+  const componentMounted = useRef(true); // CRITICAL: Track mount status
   const activeOperations = useRef(new Set<string>());
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isProcessingCapture = useRef(false); // CRITICAL: Prevent concurrent capture processing
   // Refs to track latest values for draft saving (avoids dependency issues)
   const formDataRef = useRef<any>({ ulbId: '', zoneId: '', wardId: '', mohallaId: '', parcelId: '', mapId: '', gisId: '', subGisId: '', responseTypeId: 0, oldHouseNumber: '', electricityConsumerName: '', waterSewerageConnectionNumber: '', respondentName: '', respondentStatusId: 0, ownerName: '', fatherHusbandName: '', mobileNumber: '', aadharNumber: '', propertyLatitude: '', propertyLongitude: '', assessmentYear: new Date().getFullYear().toString(), propertyTypeId: 0, buildingName: '', roadTypeId: 0, constructionYear: '', constructionTypeId: 0, addressRoadName: '', locality: '', pinCode: '', landmark: '', fourWayEast: '', fourWayWest: '', fourWayNorth: '', fourWaySouth: '', newWardNumber: '', waterSourceId: 0, rainWaterHarvestingSystem: 'NO', plantation: 'NO', parking: 'NO', pollution: 'NO', pollutionMeasurementTaken: '', waterSupplyWithin200Meters: 'NO', sewerageLineWithin100Meters: 'NO' });
   const photosRef = useRef<{ [key: string]: string | null }>({ khasra: null, front: null, left: null, right: null, other1: null, other2: null });
@@ -280,6 +283,11 @@ export default function SurveyForm({ route }: any) {
   const CLICK_DEBOUNCE_MS = 1000; // Prevent clicks within 1 second
   const [cameraReady, setCameraReady] = useState(false);
   
+  // Clear confirmation modal state
+  const [showClearModal, setShowClearModal] = useState(false);
+  const [clearingPhotoKey, setClearingPhotoKey] = useState<keyof typeof photos | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
+  
   // Add state to track save operation status (prevents rapid clicks)
   const [isSaving, setIsSaving] = useState(false);
   const SAVE_DEBOUNCE_MS = 2000; // Prevent save clicks within 2 seconds
@@ -298,15 +306,21 @@ export default function SurveyForm({ route }: any) {
   };
 
   // Safe state setter that only works if component is mounted
+  // Safe state setter - sync for better UX, only logs on failure
   const safeSetState = (setter: () => void, operationName: string = 'unknown') => {
-    if (componentMounted.current) {
-      try {
-        setter();
-      } catch (error) {
-        console.error(`Safe state update failed for ${operationName}:`, error);
+    if (!componentMounted.current) {
+      // Silent fail for common operations, log only critical ones
+      if (!operationName.includes('inputChange') && 
+          !operationName.includes('setFormData')) {
+        console.warn(`⚠️ Blocked state update for ${operationName} - component unmounted`);
       }
-    } else {
-      console.log(`Blocked state update for ${operationName} - component unmounted`);
+      return;
+    }
+    
+    try {
+      setter();
+    } catch (error) {
+      console.error(`❌ State update failed for ${operationName}:`, error);
     }
   };
 
@@ -334,7 +348,17 @@ export default function SurveyForm({ route }: any) {
         );
       }
     }, CAMERA_IDLE_TIMEOUT);
-  }, []); // Empty deps - uses refs and current state values directly
+  }, []); // EMPTY deps - uses cameraVisible from ref context, no need to recreate
+
+  // SCROLL HANDLER: Memoized to prevent recreation on every render
+  const handleScroll = useCallback(() => {
+    try {
+      resetIdleTimer();
+    } catch (error) {
+      console.error('[SCROLL] handleScroll error:', error);
+      // Don't throw - prevent scroll crashes
+    }
+  }, [resetIdleTimer]);
 
   // Track async operations to cancel them during navigation
   const trackOperation = (operationId: string) => {
@@ -661,52 +685,30 @@ export default function SurveyForm({ route }: any) {
     }
   };
 
-  // Add navigation focus/blur listeners to track navigation events
+  // Add navigation focus/blur listeners (minimal logging)
   useEffect(() => {
     const unsubscribeFocus = navigation.addListener('focus', () => {
-      console.log(`🔍 SurveyForm focused [${componentId.current}]`);
-      
-      // Safety check: if camera is visible but component lost focus, reset it
-      if (!componentMounted.current) {
-        console.warn('Component not mounted but received focus event, resetting camera state');
-        setCameraVisible(false);
-        setCameraReady(false);
-        setCameraKey(null);
-        setCameraCardName('');
-        setCameraLoading(false);
-        setCameraInitializing(false);
-        if (idleTimerRef.current) {
-          clearTimeout(idleTimerRef.current);
-        }
-        return;
-      }
-      
       resetIdleTimer(); // Reset idle timer on focus
     });
     
     const unsubscribeBlur = navigation.addListener('blur', () => {
-      console.log(`🔍 SurveyForm blurred [${componentId.current}]`);
-      // Clear idle timer on blur to prevent timeouts during navigation
+      // Clear idle timer on blur
       if (idleTimerRef.current) {
         clearTimeout(idleTimerRef.current);
         idleTimerRef.current = null;
       }
     });
     
-    // Ultra-simple navigation protection using ref
+    // Navigation protection with minimal logging
     const unsubscribeBeforeRemove = navigation.addListener('beforeRemove', (e) => {
-      console.log(`🔍 SurveyForm beforeRemove [${componentId.current}]:`, e.data.action, 'Blocked:', navigationBlocked.current);
-      
-      // Check ref value directly - no state delays
-      if (!navigationBlocked.current) {
-        console.log('Navigation allowed, proceeding');
-        return;
-      }
-      
-      // Block and show confirmation
-      if (e.data.action.type === 'GO_BACK' || e.data.action.type === 'POP') {
-        e.preventDefault();
-        showExitConfirmation();
+      try {
+        // Block and show confirmation only for actual form data
+        if (navigationBlocked.current && (e.data.action.type === 'GO_BACK' || e.data.action.type === 'POP')) {
+          e.preventDefault();
+          showExitConfirmation();
+        }
+      } catch (error) {
+        console.error('[Navigation] beforeRemove error:', error);
       }
     });
 
@@ -727,7 +729,7 @@ export default function SurveyForm({ route }: any) {
       unsubscribeBeforeRemove();
       backHandler.remove();
     };
-  }, [navigation, resetIdleTimer]);
+  }, []); // EMPTY deps - navigation object is stable, resetIdleTimer removed from deps
 
   // Auto-save form data when app goes to background
   useEffect(() => {
@@ -751,58 +753,92 @@ export default function SurveyForm({ route }: any) {
     console.log(`✅ SurveyForm fully mounted and stable [${componentId.current}]`);
     console.log(`✅ Survey Type: ${surveyTypeKey}, Edit Mode: ${editMode}, Survey ID: ${surveyId}`);
     
-    // Check if we should restore from draft
+    // Check if we should restore from draft with comprehensive error protection
     const checkAndRestoreDraft = async () => {
       try {
-        const draft = await getUnsavedDraft();
+        console.log('[SurveyForm] Checking for unsaved draft...');
+        let draft;
+        
+        try {
+          draft = await getUnsavedDraft();
+          console.log('[SurveyForm] Draft check completed, found:', !!draft);
+        } catch (draftError) {
+          console.error('[SurveyForm] getUnsavedDraft failed:', draftError);
+          draft = null; // Continue without draft
+        }
         
         if (draft && componentMounted.current) {
-          console.log('[SurveyForm] Found draft, restoring...');
-          console.log('[SurveyForm] Draft surveyId:', draft.surveyId);
-          console.log('[SurveyForm] Current surveyIdState:', surveyIdState);
-          
-          // Validate expiry (30 minutes)
-          const age = Date.now() - draft.timestamp;
-          const MAX_AGE = 30 * 60 * 1000;
-          
-          if (age > MAX_AGE) {
-            console.log('[SurveyForm] Draft expired, not restoring');
-            return;
+          try {
+            console.log('[SurveyForm] Found draft, attempting restoration...');
+            console.log('[SurveyForm] Draft surveyId:', draft?.surveyId);
+            console.log('[SurveyForm] Current surveyIdState:', surveyIdState);
+            
+            // Validate expiry (30 minutes)
+            const age = Date.now() - (draft?.timestamp || 0);
+            const MAX_AGE = 30 * 60 * 1000;
+            
+            if (age > MAX_AGE) {
+              console.log('[SurveyForm] Draft expired (age:', Math.floor(age / 60000), 'min), not restoring');
+              return;
+            }
+            
+            // Restore form data safely
+            if (draft?.formData && componentMounted.current) {
+              try {
+                console.log('[SurveyForm] Restoring form data...', Object.keys(draft.formData).length, 'fields');
+                safeSetState(() => setFormData(prev => ({ ...prev, ...draft.formData })), 'restoreFormData');
+                console.log('[SurveyForm] Form data restoration queued');
+              } catch (formError) {
+                console.error('[SurveyForm] Failed to restore form data:', formError);
+                // Continue with photo restoration even if form data fails
+              }
+            }
+            
+            // Restore photos safely
+            if (draft?.photos && componentMounted.current) {
+              try {
+                console.log('[SurveyForm] Restoring photos...');
+                safeSetState(() => setPhotos(draft.photos), 'restorePhotos');
+                console.log('[SurveyForm] Photo restoration queued');
+              } catch (photoError) {
+                console.error('[SurveyForm] Failed to restore photos:', photoError);
+              }
+            }
+            
+            // Sync refs immediately after restoration to ensure consistency
+            try {
+              formDataRef.current = { ...formDataRef.current, ...draft.formData };
+              photosRef.current = { ...photosRef.current, ...draft.photos };
+              console.log('[SurveyForm] Refs synced with restored data');
+            } catch (refError) {
+              console.error('[SurveyForm] Failed to sync refs:', refError);
+            }
+            
+            console.log('[SurveyForm] Draft restoration completed successfully');
+            
+            // Show success toast
+            try {
+              Toast.show({
+                type: 'success',
+                text1: 'Draft Restored',
+                text2: 'Your unsaved progress has been recovered',
+                visibilityTime: 3000,
+              });
+            } catch (toastError) {
+              console.error('[SurveyForm] Toast show failed:', toastError);
+            }
+            
+          } catch (restoreError) {
+            console.error('[SurveyForm] Draft restoration failed:', restoreError);
+            // Don't crash - continue without draft
           }
-          
-          // Restore form data safely
-          if (draft.formData && componentMounted.current) {
-            safeSetState(() => setFormData(prev => ({ ...prev, ...draft.formData })), 'restoreFormData');
-            console.log('[SurveyForm] Restored form data - fields updated:', Object.keys(draft.formData).length);
-          }
-          
-          // Restore photos safely
-          if (draft.photos && componentMounted.current) {
-            safeSetState(() => setPhotos(draft.photos), 'restorePhotos');
-            console.log('[SurveyForm] Restored photos:', JSON.stringify(draft.photos));
-          }
-          
-          // Sync refs immediately after restoration to ensure consistency
-          formDataRef.current = { ...formDataRef.current, ...draft.formData };
-          photosRef.current = { ...photosRef.current, ...draft.photos };
-          console.log('[SurveyForm] Synced refs with restored data');
-          
-          // DON'T clear draft here - keep it for potential future recoveries
-          // Draft will be cleared when user saves or starts new survey
-          console.log('[SurveyForm] Draft restored (kept for safety)');
-          
-          Toast.show({
-            type: 'success',
-            text1: 'Draft Restored',
-            text2: 'Your unsaved progress has been recovered',
-            visibilityTime: 3000,
-          });
         } else if (!draft) {
           console.log('[SurveyForm] No draft found');
         }
       } catch (error) {
-        console.error('[SurveyForm] Failed to restore draft:', error);
-        // Don't crash - just log the error
+        console.error('[SurveyForm] Draft restoration process failed:', error);
+        console.error('[SurveyForm] Error stack:', error instanceof Error ? error.stack : 'No stack');
+        // Don't crash - just log the error and continue
       }
     };
     
@@ -820,7 +856,7 @@ export default function SurveyForm({ route }: any) {
       // Mark as unmounted FIRST to prevent ANY state updates
       componentMounted.current = false;
       navigationBlocked.current = false;
-      
+          
       // Cancel ALL active operations immediately (prevents camera/storage crashes)
       activeOperations.current.clear();
       
@@ -897,6 +933,20 @@ export default function SurveyForm({ route }: any) {
           }
           
           safeSetState(() => setAssignment(parsedAssignment), 'setAssignment');
+          
+          // CRITICAL: Pre-fill ULB, Zone, Ward, Mohalla ONCE during initial load
+          // This prevents the dangerous [assignment] useEffect that causes crashes!
+          safeSetState(() => setFormData(prev => ({
+            ...prev,
+            ulbId: parsedAssignment.ulb ? parsedAssignment.ulb.ulbId : '',
+            zoneId: parsedAssignment.zone ? parsedAssignment.zone.zoneId : '',
+            wardId: parsedAssignment.ward ? parsedAssignment.ward.wardId : '',
+            mohallaId: parsedAssignment.mohallas && parsedAssignment.mohallas.length > 0
+              ? parsedAssignment.mohallas[0].mohallaId
+              : '',
+          })), 'setFormData_fromAssignmentInitial');
+          
+          console.log('[Assignment] Loaded and pre-filled form data once');
         } else {
           // No assignment found
           console.log('No primary assignment found');
@@ -921,7 +971,10 @@ export default function SurveyForm({ route }: any) {
     };
     
     loadAssignment();
-  }, []);
+  }, []); // EMPTY deps - load ONLY ONCE on mount!
+
+  // REMOVED: useEffect with [assignment] dependency that was causing crash loop
+  // The assignment data is now loaded and applied ONCE during initial load above (lines 896-960)
 
   // Simple component cleanup
   useEffect(() => {
@@ -1021,7 +1074,10 @@ export default function SurveyForm({ route }: any) {
         ]
       );
     }
-  }, [camPermission?.granted, cameraVisible]);
+  }, [camPermission?.granted]); // Only watch permission, not cameraVisible
+  
+  // Camera permission effect only (no mount/unmount tracking - causes infinite loop)
+  // Camera is controlled directly by openCameraFor() function, not by effects
 
   // Simple memory cleanup (removed interval to prevent navigation conflicts)
   const performMemoryCleanup = () => {
@@ -1127,30 +1183,35 @@ export default function SurveyForm({ route }: any) {
   };
 
   const openCameraFor = async (key: keyof typeof photos) => {
+    const currentTime = Date.now();
+    
+    // CRITICAL: Implement stricter click debouncing
+    if (currentTime - lastClickTime < CLICK_DEBOUNCE_MS * 2) { // Increased to 2 seconds
+      console.log(`⚠️ Rapid click detected for ${key}, ignoring (${currentTime - lastClickTime}ms since last click)`);
+      return;
+    }
+    
+    setLastClickTime(currentTime);
+    console.log(`📷 Camera open requested for: ${key}`);
+    
+    // CRITICAL: Prevent multiple operations with strict checking
+    if (cameraLoading || cameraVisible || cameraInitializing) {
+      console.log(`❌ Camera state busy - loading: ${cameraLoading}, visible: ${cameraVisible}, initializing: ${cameraInitializing}`);
+      Alert.alert(
+        'Camera Busy',
+        'Please wait for the current camera operation to complete.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    // Verify component is still mounted before proceeding
+    if (!componentMounted.current) {
+      console.log('❌ Component not mounted, cannot open camera');
+      return;
+    }
+    
     try {
-      const currentTime = Date.now();
-      
-      // Implement click debouncing to prevent rapid clicks
-      if (currentTime - lastClickTime < CLICK_DEBOUNCE_MS) {
-        console.log(`Rapid click detected for ${key}, ignoring (${currentTime - lastClickTime}ms since last click)`);
-        return;
-      }
-      
-      setLastClickTime(currentTime);
-      console.log(`Camera open requested for: ${key}`);
-      
-      // Prevent multiple operations with comprehensive checking
-      if (cameraLoading || cameraVisible || cameraInitializing) {
-        console.log(`Camera state busy - loading: ${cameraLoading}, visible: ${cameraVisible}, initializing: ${cameraInitializing}`);
-        return;
-      }
-      
-      // Verify component is still mounted before proceeding
-      if (!componentMounted.current) {
-        console.log('Component not mounted, cannot open camera');
-        return;
-      }
-      
       // Set initialization state immediately
       setCameraInitializing(true);
       setCameraLoading(true);
@@ -1158,7 +1219,7 @@ export default function SurveyForm({ route }: any) {
       // Set camera key and card name immediately and persistently
       setCameraKey(key);
       setCameraCardName(photoCardNames[key] || 'Photo');
-      console.log(`Camera key set to: ${key}, Card name: ${photoCardNames[key]}`);
+      console.log(`📷 Camera key set to: ${key}, Card name: ${photoCardNames[key]}`);
       
       try {
         // Check camera permission
@@ -1176,15 +1237,23 @@ export default function SurveyForm({ route }: any) {
           throw new Error('Location permission denied');
         }
         
+        // CRITICAL: Ensure we have a survey ID before opening camera
+        let currentSurveyId = surveyIdState;
+        if (!currentSurveyId) {
+          currentSurveyId = `temp_survey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+          console.log('[CAMERA] 🆔 Generated temp survey ID before capture:', currentSurveyId);
+          safeSetState(() => setSurveyIdState(currentSurveyId), 'setSurveyIdState_preCapture');
+        }
+        
         // Reset camera ready state
         setCameraReady(false);
         
         // Small delay to ensure all state updates are processed
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 150)); // Increased delay
         
         // Final validation - check component is still mounted
         if (!componentMounted.current) {
-          console.log('Component unmounted during camera setup, aborting');
+          console.log('❌ Component unmounted during camera setup, aborting');
           setCameraInitializing(false);
           setCameraLoading(false);
           setCameraKey(null);
@@ -1193,10 +1262,10 @@ export default function SurveyForm({ route }: any) {
         
         // Open camera modal
         setCameraVisible(true);
-        console.log(`Camera opened successfully for: ${key}`);
+        console.log(`✅ Camera opened successfully for: ${key}`);
         
       } catch (setupError) {
-        console.error('Camera setup failed:', setupError);
+        console.error('❌ Camera setup failed:', setupError);
         
         // Reset states on setup failure
         setCameraVisible(false);
@@ -1212,7 +1281,7 @@ export default function SurveyForm({ route }: any) {
       }
       
     } catch (error) {
-      console.error('Error in openCameraFor:', error);
+      console.error('❌ Error in openCameraFor:', error);
       
       // Reset all camera state on any error
       setCameraVisible(false);
@@ -1221,11 +1290,11 @@ export default function SurveyForm({ route }: any) {
       setCameraCardName('');
       
       Alert.alert('Camera Error', 'Failed to open camera. Please try again.');
-    } finally {
-      // Always reset loading and initializing states
-      setCameraLoading(false);
-      setCameraInitializing(false);
     }
+    // REMOVED: finally block that was resetting cameraLoading too early
+    // These are now reset in onCameraReady callback instead:
+    // - setCameraLoading(false)
+    // - setCameraInitializing(false)
   };
 
   // Step 1: Skip overlay drawing here. Overlay is added via off-screen compositing in Step 2.
@@ -1234,43 +1303,56 @@ export default function SurveyForm({ route }: any) {
     // Store current camera key at the start to prevent race conditions
     const captureKey = cameraKey;
     const captureTime = Date.now();
-    
-    console.log(`Starting capture process for: ${captureKey} at ${captureTime}`);
-    
+      
+    console.log(`[CAMERA] 📸 HandleCapture called at ${captureTime}`);
+    console.log(`[CAMERA] State check:`, {
+      captureKey,
+      cameraReady,
+      cameraLoading,
+      cameraInitializing,
+      cameraVisible,
+      hasCameraRef: !!cameraViewRef.current,
+      componentMounted: componentMounted.current,
+    });
+      
     // Critical: Check if component is still mounted
     if (!componentMounted.current) {
-      console.error('Component not mounted, aborting capture');
+      console.error('[CAMERA] ❌ Component not mounted, aborting capture');
       return;
     }
-    
-    // Enhanced validation with recovery mechanisms
+      
+    // Enhanced validation with detailed logging
     if (!cameraViewRef.current) {
-      console.error('Camera reference is null');
+      console.error('[CAMERA] ❌ Camera reference is null');
       Alert.alert('Camera Error', 'Camera is not ready. Please close and reopen the camera.');
       return;
     }
-    
+    console.log('[CAMERA] ✅ Camera reference valid');
+      
     if (!captureKey) {
-      console.error('Camera key not available - rapid click detected');
+      console.error('[CAMERA] ❌ Camera key not available - rapid click detected');
       Alert.alert('Please Wait', 'Camera is still initializing. Please wait a moment and try again.');
       return;
     }
-
+    console.log('[CAMERA] ✅ Capture key valid:', captureKey);
+      
     if (!cameraReady) {
-      console.error('Camera not ready yet');
+      console.error('[CAMERA] ❌ Camera not ready yet');
       Alert.alert('Camera Not Ready', 'Please wait for the camera to initialize completely.');
       return;
     }
-
+    console.log('[CAMERA] ✅ Camera is ready');
+  
     // Prevent double capture with more specific checking
     if (cameraLoading) {
-      console.log('Capture already in progress, ignoring');
+      console.log('[CAMERA] ⏳ Capture already in progress, ignoring');
       return;
     }
-
+    console.log('[CAMERA] ✅ Not loading, proceeding with capture');
+  
     try {
       setCameraLoading(true);
-      console.log(`Starting image capture for: ${captureKey}`);
+      console.log(`[CAMERA] Starting image capture for: ${captureKey}`);
 
       // Validate camera reference again
       if (!cameraViewRef.current) {
@@ -1329,24 +1411,112 @@ export default function SurveyForm({ route }: any) {
         finalUri = (photo as any).uri;
       }
 
-      // Step 3: Update UI immediately using the stored camera key
-      console.log(`Updating UI with captured image for: ${captureKey}`);
-      safeSetState(() => setPhotos((prev) => ({ ...prev, [captureKey]: finalUri })), 'setPhotos_capture');
+      // CRITICAL STEP 2.5: Compress image with crash prevention
+      let compressedUri = finalUri;
+      try {
+        // CRITICAL: Set processing flag to prevent concurrent operations
+        if (isProcessingCapture.current) {
+          console.warn('[CAMERA] ⚠️ Capture already processing, aborting duplicate');
+          return;
+        }
+        isProcessingCapture.current = true;
+        
+        const compressionResult = await compressImageAdaptive(finalUri);
+        compressedUri = compressionResult.uri;
+        // Compression logging handled by imageCompression.ts
+        
+        // If compression created a new file, update finalUri
+        if (compressedUri !== finalUri) {
+          finalUri = compressedUri;
+          console.log('[CAMERA] Using compressed image URI');
+        }
+        
+        // Reset processing flag AFTER successful compression
+        isProcessingCapture.current = false;
+      } catch (compressionError) {
+        console.error('[CAMERA] Image compression failed (continuing with original):', compressionError);
+        // Reset processing flag on error too
+        isProcessingCapture.current = false;
+        // Continue with uncompressed image - compression is not critical for functionality
+      }
 
-      // Step 4: Close camera immediately to prevent state issues
-      console.log('Closing camera after successful capture...');
+      // Step 3: Update UI with captured image - CRITICAL: Do this BEFORE closing camera
+      console.log(`[CAMERA] Updating UI with captured image for: ${captureKey}`);
+      
+      // Verify component still mounted
+      if (!componentMounted.current) {
+        console.warn('[CAMERA] ⚠️ Component unmounted before UI update, aborting');
+        isProcessingCapture.current = false;
+        return;
+      }
+      
+      // Update photos state FIRST (camera still visible) - wrapped in extra try-catch
+      try {
+        console.log('[CAMERA] About to update photo state...');
+        
+        // Use safeSetState with explicit error handling
+        safeSetState(() => {
+          try {
+            setPhotos((prev) => {
+              console.log('[CAMERA] Setting photo for key:', captureKey, 'URI length:', finalUri?.length);
+              const newPhotos = { ...prev, [captureKey]: finalUri };
+              console.log('[CAMERA] New photo state created successfully');
+              return newPhotos;
+            });
+          } catch (innerError) {
+            console.error('[CAMERA] Inner setPhotos error:', innerError);
+            throw innerError; // Re-throw to outer catch
+          }
+        }, 'setPhotos_capture');
+        
+        console.log('[CAMERA] ✅ Photo state update queued successfully');
+        
+        // Wait for React to process the update
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+      } catch (photoError) {
+        console.error('[CAMERA] ❌ Failed to update photo state:', photoError);
+        console.error('[CAMERA] Error stack:', photoError instanceof Error ? photoError.stack : 'No stack');
+        // Continue anyway - photo will be saved to storage in background
+      }
+      
+      // CRITICAL: Wait additional time for UI to settle after photo update
+      console.log('[CAMERA] Waiting for UI to settle...');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Step 4: Close camera AFTER photo state has settled
+      console.log('[CAMERA] Closing camera after successful capture...');
       
       // Verify component is still mounted before closing
       if (componentMounted.current) {
         // Batch all camera state resets together using safeSetState
-        safeSetState(() => {
-          setCameraVisible(false);
-          setCameraKey(null);
-          setCameraCardName('');
-          setCameraReady(false);
-          setCameraLoading(false);
-          setCameraInitializing(false);
-        }, 'closeCamera_afterCapture');
+        try {
+          console.log('[CAMERA] About to close camera modal...');
+          
+          safeSetState(() => {
+            try {
+              setCameraVisible(false);
+              setCameraKey(null);
+              setCameraCardName('');
+              setCameraReady(false);
+              setCameraLoading(false);
+              setCameraInitializing(false);
+              console.log('[CAMERA] Camera state reset successfully');
+            } catch (innerError) {
+              console.error('[CAMERA] Inner camera close error:', innerError);
+              throw innerError;
+            }
+          }, 'closeCamera_afterCapture');
+          
+          console.log('[CAMERA] ✅ Camera close queued successfully');
+          
+          // Wait for camera modal to unmount
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (closeError) {
+          console.error('[CAMERA] ❌ Error closing camera:', closeError);
+          console.error('[CAMERA] Error stack:', closeError instanceof Error ? closeError.stack : 'No stack');
+        }
         
         // Clear idle timer
         if (idleTimerRef.current) {
@@ -1358,6 +1528,8 @@ export default function SurveyForm({ route }: any) {
         if (cameraViewRef.current) {
           cameraViewRef.current = null;
         }
+      } else {
+        console.warn('[CAMERA] ⚠️ Component not mounted, skipping camera close');
       }
 
       // Step 5: Background storage (non-blocking with safety)
@@ -1390,9 +1562,13 @@ export default function SurveyForm({ route }: any) {
           
           // Triple-check before proceeding
           if (!componentMounted.current || !activeOperations.current.has(operationId)) {
-            console.log('[Camera] Aborted - component unmounted or operation cancelled');
+            console.log('[CAMERA] Aborted - component unmounted or operation cancelled');
             return;
           }
+          
+          console.log('[STORAGE] 💾 Starting background storage for survey:', finalSurveyId);
+          console.log('[STORAGE] 📷 Capture key:', captureKey);
+          console.log('[STORAGE] 🖼️ Photo URI length:', finalUri?.length);
           
           // Try to store in database (background, non-blocking)
           const storedUri = await storeImageForSurvey(
@@ -1401,10 +1577,12 @@ export default function SurveyForm({ route }: any) {
             String(captureKey)
           );
           
+          console.log('[STORAGE] ✅ Storage completed, returned URI length:', storedUri?.length);
+          
           // Update UI with stored URI if successful and component still mounted
           if (componentMounted.current && activeOperations.current.has(operationId)) {
             safeSetState(() => setPhotos((prev) => ({ ...prev, [captureKey]: storedUri })), 'setPhotos_backgroundStorage');
-            console.log('Background storage completed:', storedUri);
+            console.log('[STORAGE] Background storage completed:', storedUri?.substring(0, 100) + '...');
           }
           
         } catch (bgStorageError) {
@@ -1415,10 +1593,17 @@ export default function SurveyForm({ route }: any) {
         }
       }, 500); // Increased delay to ensure UI updates complete
 
-      console.log(`Image capture completed successfully for: ${captureKey}`);
+      // Increment capture counter and log success
+      captureCount.current += 1;
+      console.log(`[CAMERA] ✅ Image capture completed successfully for: ${captureKey}`);
+      console.log(`[CAMERA] Total captures this session: ${captureCount.current}`);
+      console.log(`[CAMERA] Photo URI (first 100 chars): ${finalUri?.substring(0, 100)}...`);
 
     } catch (e) {
       console.error('Image capture error:', e);
+      
+      // CRITICAL: Reset processing flag on error
+      isProcessingCapture.current = false;
       
       // Ensure camera is closed even on error using safeSetState
       safeSetState(() => {
@@ -1432,6 +1617,9 @@ export default function SurveyForm({ route }: any) {
     } finally {
       safeSetState(() => setCameraLoading(false), 'setCameraLoading_finally');
       
+      // CRITICAL: Always reset processing flag in finally
+      isProcessingCapture.current = false;
+      
       // Safety cleanup with shorter timeout
       setTimeout(() => {
         if (cameraLoading) {
@@ -1440,6 +1628,79 @@ export default function SurveyForm({ route }: any) {
         }
       }, 1000); // Reduced timeout
     }
+  };
+
+  // Clear photo handlers
+  const handleClearPhoto = (key: keyof typeof photos) => {
+    console.log('[IMAGE] 🗑️ Clear requested for photo:', key);
+    setClearingPhotoKey(key);
+    setShowClearModal(true);
+  };
+
+  const confirmClearPhoto = async () => {
+    if (!clearingPhotoKey) return;
+    
+    try {
+      console.log('[IMAGE] 🗑️ Confirming clear for photo:', clearingPhotoKey);
+      setIsClearing(true);
+      
+      // Get current photo URI before clearing
+      const photoUri = photos[clearingPhotoKey];
+      
+      if (photoUri) {
+        console.log('[IMAGE] 📍 Photo URI to delete:', photoUri);
+        
+        // Validate surveyId before deletion
+        if (!surveyIdState) {
+          console.warn('[IMAGE] ⚠️ No survey ID available for deletion');
+        }
+        
+        // Delete from storage using existing service
+        await deleteImagesForSurvey(surveyIdState || '');
+        console.log('[IMAGE] ✅ Deleted from storage');
+        
+        // Remove from state with validation
+        safeSetState(() => {
+          setPhotos(prev => ({
+            ...prev,
+            [clearingPhotoKey]: null,
+          }));
+        }, 'clearPhoto_state');
+        
+        console.log('[IMAGE] ✨ Photo cleared successfully');
+        Toast.show({
+          type: 'success',
+          text1: 'Photo Cleared',
+          text2: `${photoCardNames[clearingPhotoKey]} has been removed`,
+          position: 'bottom',
+          visibilityTime: 2000,
+        });
+      }
+      
+      safeSetState(() => {
+        setShowClearModal(false);
+        setClearingPhotoKey(null);
+      }, 'clearPhoto_modal');
+    } catch (error) {
+      console.error('[IMAGE] ❌ Clear operation failed:', error);
+      Toast.show({
+        type: 'error',
+        text1: 'Clear Failed',
+        text2: 'Failed to delete the photo. Please try again.',
+        position: 'bottom',
+        visibilityTime: 3000,
+      });
+    } finally {
+      if (componentMounted.current) {
+        setIsClearing(false);
+      }
+    }
+  };
+
+  const cancelClearPhoto = () => {
+    console.log('[IMAGE] ⚠️ Clear operation cancelled');
+    setShowClearModal(false);
+    setClearingPhotoKey(null);
   };
 
   // Integer IDs for SurveyTypeMaster (replace with real IDs from your DB/seed)
@@ -1499,7 +1760,7 @@ export default function SurveyForm({ route }: any) {
     sewerageLineWithin100Meters: 'NO',
     disposalTypeId: 0,
     totalPlotArea: '',
-    builtupAreaOfGroundFloor: '',
+    builtupAreaOfGroundFloor: 0,
     remarks: '',
   });
 
@@ -1585,28 +1846,21 @@ export default function SurveyForm({ route }: any) {
     loadData();
   }, [editMode, surveyId, initialSurveyData]);
 
-  useEffect(() => {
-    if (assignment && componentMounted.current) {
-      safeSetState(() => setFormData((prev) => ({
-        ...prev,
-        ulbId: assignment.ulb ? assignment.ulb.ulbId : '',
-        zoneId: assignment.zone ? assignment.zone.zoneId : '',
-        wardId: assignment.ward ? assignment.ward.wardId : '',
-        mohallaId:
-          assignment.mohallas && assignment.mohallas.length > 0
-            ? assignment.mohallas[0].mohallaId
-            : '',
-      })), 'setFormData from assignment');
-    }
-  }, [assignment]);
+  // REMOVED: Dangerous useEffect with [assignment] dependency that was causing crash loop!
+  // Assignment data is now loaded and pre-filled ONCE during initial load (lines 896-960)
+  // This prevents re-renders during form filling that were causing crashes.
 
   // Update refs when state changes (MUST be separate useEffects at top level)
   useEffect(() => {
-    formDataRef.current = formData;
+    if (componentMounted.current) {
+      formDataRef.current = formData;
+    }
   }, [formData]);
   
   useEffect(() => {
-    photosRef.current = photos;
+    if (componentMounted.current) {
+      photosRef.current = photos;
+    }
   }, [photos]);
 
   const createDropdownOptions = (items: any[], labelKey: string, valueKey: string) => {
@@ -1654,10 +1908,41 @@ export default function SurveyForm({ route }: any) {
   //   value: item.disposalTypeId,
   // })) || [];
 
-  const handleInputChange = (name: keyof FormData, value: string | number) => {
-    // Direct state update - no debouncing for text inputs (causes keyboard issues)
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  // Track last input change time per field to prevent rapid updates
+  const lastInputChangeTime = useRef<{ [key: string]: number }>({});
+  const INPUT_CHANGE_THROTTLE_MS = 50; // Minimum 50ms between updates (prevents >20 updates/sec)
+
+  // Handle input changes with crash protection
+  const handleInputChange = useCallback((name: keyof FormData, value: string | number) => {
+    try {
+      // CRITICAL: Check if component is mounted before updating state
+      if (!componentMounted.current) {
+        console.warn('[INPUT] Component unmounted, skipping input change for:', name);
+        return;
+      }
+      
+      // THROTTLE: Prevent rapid-fire state updates that cause crashes
+      const now = Date.now();
+      const lastTime = lastInputChangeTime.current[name] || 0;
+      
+      if (now - lastTime < INPUT_CHANGE_THROTTLE_MS) {
+        // Too fast - skip this update (normal human typing is ~100-200ms)
+        console.log(`[INPUT] ⚠️ Throttled rapid input change for ${name} (${now - lastTime}ms)`);
+        return;
+      }
+      
+      lastInputChangeTime.current[name] = now;
+      
+      // Direct state update for responsive UX - wrapped in safeSetState
+      safeSetState(() => {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      }, `inputChange_${String(name)}`);
+      
+    } catch (error) {
+      console.error('[INPUT] handleInputChange failed:', error);
+      // Don't throw - fail silently to prevent crashes
+    }
+  }, []);
 
   const validateForm = () => {
     const requiredFields: { key: keyof FormData; label: string }[] = [
@@ -1671,7 +1956,7 @@ export default function SurveyForm({ route }: any) {
       { key: 'fatherHusbandName', label: 'Father/Husband Name' },
       { key: 'propertyTypeId', label: 'Property Type' },
       { key: 'roadTypeId', label: 'Road Type' },
-      { key: 'constructionYear', label: 'Construction Year' },
+      //{ key: 'constructionYear', label: 'Construction Year' },
       { key: 'constructionTypeId', label: 'Construction Type' },
       { key: 'addressRoadName', label: 'Address/Road Name' },
       { key: 'pinCode', label: 'PIN Code' },
@@ -1681,7 +1966,6 @@ export default function SurveyForm({ route }: any) {
       { key: 'sewerageLineWithin100Meters', label: 'Sewerage Line within 100m' },
       { key: 'disposalTypeId', label: 'Disposal Type' },
       { key: 'totalPlotArea', label: 'Total Plot Area' },
-      { key: 'builtupAreaOfGroundFloor', label: 'Built-up Area of Ground Floor' },
       { key: 'newWardNumber', label: 'New Ward Number' },
     ];
 
@@ -1839,7 +2123,7 @@ export default function SurveyForm({ route }: any) {
         sewerageLineWithin100Meters: formData.sewerageLineWithin100Meters,
         disposalTypeId: formData.disposalTypeId,
         totalPlotArea: toNumber(formData.totalPlotArea),
-        builtupAreaOfGroundFloor: toNumber(formData.builtupAreaOfGroundFloor),
+        builtupAreaOfGroundFloor: formData.propertyTypeId === 3 ? 0 : toNumber(formData.builtupAreaOfGroundFloor),
         remarks: formData.remarks,
       };
       
@@ -2058,7 +2342,17 @@ export default function SurveyForm({ route }: any) {
         </TouchableOpacity>
         <Text style={styles.topHeaderTitle}>{`New ${surveyType} Survey`}</Text>
       </View>
-      <ScrollView ref={scrollViewRef}>
+      <ScrollView 
+        ref={scrollViewRef}
+        onScroll={handleScroll} // Use memoized handler
+        scrollEventThrottle={16} // 60fps - limits callbacks to prevent overload
+        showsVerticalScrollIndicator={true}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={{ paddingBottom: 100 }} // Extra padding at bottom
+        removeClippedSubviews={false} // Prevent subview clipping that can cause crashes
+        decelerationRate="fast" // Smoother scroll experience
+      >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>1. Survey Details</Text>
           <FormInput label="ULB" value={assignment?.ulb?.ulbName || ''} editable={false} />
@@ -2247,13 +2541,15 @@ export default function SurveyForm({ route }: any) {
             onValueChange={(value) => handleInputChange('roadTypeId', value)}
             value={formData.roadTypeId}
           />
-          <FormInput
-            label="Construction Year"
-            required
-            onChangeText={(value) => handleInputChange('constructionYear', value)}
-            value={formData.constructionYear}
-            keyboardType="numeric"
-          />
+          {formData.propertyTypeId !== 3 && (
+            <FormInput
+              label="Construction Year"
+              required
+              onChangeText={(value) => handleInputChange('constructionYear', value)}
+              value={formData.constructionYear}
+              keyboardType="numeric"
+            />
+          )}
           <FormDropdown
             label="Construction Type"
             required
@@ -2409,13 +2705,15 @@ export default function SurveyForm({ route }: any) {
             value={String(formData.totalPlotArea ?? '')}
             keyboardType="numeric"
           />
-          <FormInput
-            label="Built-up Area of Ground Floor"
-            required
-            onChangeText={(value) => handleInputChange('builtupAreaOfGroundFloor', value)}
-            value={String(formData.builtupAreaOfGroundFloor ?? '')}
-            keyboardType="numeric"
-          />
+          {formData.propertyTypeId !== 3 && (
+            <FormInput
+              label="Built-up Area of Ground Floor"
+              required
+              onChangeText={(value) => handleInputChange('builtupAreaOfGroundFloor', value)}
+              value={String(formData.builtupAreaOfGroundFloor ?? '')}
+              keyboardType="numeric"
+            />
+          )}
           <FormInput
             label="Remarks"
             onChangeText={(value: string) => handleInputChange('remarks', value)}
@@ -2432,8 +2730,9 @@ export default function SurveyForm({ route }: any) {
                 <>
                   <RNImage source={{ uri: photos.front }} style={styles.photoPreview} />
                   <View style={styles.cardActions}>
+                    {/* View Button - Green */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#10B981' }]}
                       onPress={() => {
                         setViewerUri(photos.front);
                         setViewerCardName(photoCardNames.front);
@@ -2441,10 +2740,19 @@ export default function SurveyForm({ route }: any) {
                       }}>
                       <Text style={styles.cardActionText}>View</Text>
                     </TouchableOpacity>
+                    
+                    {/* Retake Button - Yellow */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#F59E0B' }]}
                       onPress={() => openCameraFor('front')}>
                       <Text style={styles.cardActionText}>Retake</Text>
+                    </TouchableOpacity>
+                    
+                    {/* Clear Button - Red */}
+                    <TouchableOpacity
+                      style={[styles.cardActionBtn, { backgroundColor: '#EF4444' }]}
+                      onPress={() => handleClearPhoto('front')}>
+                      <Text style={styles.cardActionText}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -2463,8 +2771,9 @@ export default function SurveyForm({ route }: any) {
                 <>
                   <RNImage source={{ uri: photos.khasra }} style={styles.photoPreview} />
                   <View style={styles.cardActions}>
+                    {/* View Button - Green */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#10B981' }]}
                       onPress={() => {
                         setViewerUri(photos.khasra);
                         setViewerCardName(photoCardNames.khasra);
@@ -2472,10 +2781,19 @@ export default function SurveyForm({ route }: any) {
                       }}>
                       <Text style={styles.cardActionText}>View</Text>
                     </TouchableOpacity>
+                    
+                    {/* Retake Button - Yellow */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#F59E0B' }]}
                       onPress={() => openCameraFor('khasra')}>
                       <Text style={styles.cardActionText}>Retake</Text>
+                    </TouchableOpacity>
+                    
+                    {/* Clear Button - Red */}
+                    <TouchableOpacity
+                      style={[styles.cardActionBtn, { backgroundColor: '#EF4444' }]}
+                      onPress={() => handleClearPhoto('khasra')}>
+                      <Text style={styles.cardActionText}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -2494,8 +2812,9 @@ export default function SurveyForm({ route }: any) {
                 <>
                   <RNImage source={{ uri: photos.left }} style={styles.photoPreview} />
                   <View style={styles.cardActions}>
+                    {/* View Button - Green */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#10B981' }]}
                       onPress={() => {
                         setViewerUri(photos.left);
                         setViewerCardName(photoCardNames.left);
@@ -2503,10 +2822,19 @@ export default function SurveyForm({ route }: any) {
                       }}>
                       <Text style={styles.cardActionText}>View</Text>
                     </TouchableOpacity>
+                    
+                    {/* Retake Button - Yellow */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#F59E0B' }]}
                       onPress={() => openCameraFor('left')}>
                       <Text style={styles.cardActionText}>Retake</Text>
+                    </TouchableOpacity>
+                    
+                    {/* Clear Button - Red */}
+                    <TouchableOpacity
+                      style={[styles.cardActionBtn, { backgroundColor: '#EF4444' }]}
+                      onPress={() => handleClearPhoto('left')}>
+                      <Text style={styles.cardActionText}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -2525,8 +2853,9 @@ export default function SurveyForm({ route }: any) {
                 <>
                   <RNImage source={{ uri: photos.right }} style={styles.photoPreview} />
                   <View style={styles.cardActions}>
+                    {/* View Button - Green */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#10B981' }]}
                       onPress={() => {
                         setViewerUri(photos.right);
                         setViewerCardName(photoCardNames.right);
@@ -2534,10 +2863,19 @@ export default function SurveyForm({ route }: any) {
                       }}>
                       <Text style={styles.cardActionText}>View</Text>
                     </TouchableOpacity>
+                    
+                    {/* Retake Button - Yellow */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#F59E0B' }]}
                       onPress={() => openCameraFor('right')}>
                       <Text style={styles.cardActionText}>Retake</Text>
+                    </TouchableOpacity>
+                    
+                    {/* Clear Button - Red */}
+                    <TouchableOpacity
+                      style={[styles.cardActionBtn, { backgroundColor: '#EF4444' }]}
+                      onPress={() => handleClearPhoto('right')}>
+                      <Text style={styles.cardActionText}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -2556,8 +2894,9 @@ export default function SurveyForm({ route }: any) {
                 <>
                   <RNImage source={{ uri: photos.other1 }} style={styles.photoPreview} />
                   <View style={styles.cardActions}>
+                    {/* View Button - Green */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#10B981' }]}
                       onPress={() => {
                         setViewerUri(photos.other1);
                         setViewerCardName(photoCardNames.other1);
@@ -2565,10 +2904,19 @@ export default function SurveyForm({ route }: any) {
                       }}>
                       <Text style={styles.cardActionText}>View</Text>
                     </TouchableOpacity>
+                    
+                    {/* Retake Button - Yellow */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#F59E0B' }]}
                       onPress={() => openCameraFor('other1')}>
                       <Text style={styles.cardActionText}>Retake</Text>
+                    </TouchableOpacity>
+                    
+                    {/* Clear Button - Red */}
+                    <TouchableOpacity
+                      style={[styles.cardActionBtn, { backgroundColor: '#EF4444' }]}
+                      onPress={() => handleClearPhoto('other1')}>
+                      <Text style={styles.cardActionText}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -2587,8 +2935,9 @@ export default function SurveyForm({ route }: any) {
                 <>
                   <RNImage source={{ uri: photos.other2 }} style={styles.photoPreview} />
                   <View style={styles.cardActions}>
+                    {/* View Button - Green */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#10B981' }]}
                       onPress={() => {
                         setViewerUri(photos.other2);
                         setViewerCardName(photoCardNames.other2);
@@ -2596,10 +2945,19 @@ export default function SurveyForm({ route }: any) {
                       }}>
                       <Text style={styles.cardActionText}>View</Text>
                     </TouchableOpacity>
+                    
+                    {/* Retake Button - Yellow */}
                     <TouchableOpacity
-                      style={styles.cardActionBtn}
+                      style={[styles.cardActionBtn, { backgroundColor: '#F59E0B' }]}
                       onPress={() => openCameraFor('other2')}>
                       <Text style={styles.cardActionText}>Retake</Text>
+                    </TouchableOpacity>
+                    
+                    {/* Clear Button - Red */}
+                    <TouchableOpacity
+                      style={[styles.cardActionBtn, { backgroundColor: '#EF4444' }]}
+                      onPress={() => handleClearPhoto('other2')}>
+                      <Text style={styles.cardActionText}>Clear</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -2673,10 +3031,13 @@ export default function SurveyForm({ route }: any) {
                 ref={cameraViewRef} 
                 facing="back"
                 onCameraReady={() => {
-                  console.log('Camera is ready');
+                  console.log('[CAMERA] 🎥 onCameraReady callback fired');
                   resetIdleTimer(); // Start idle timer when camera is ready
                   setTimeout(() => {
+                    console.log('[CAMERA] ✅ Setting cameraReady = true, resetting loading states');
                     setCameraReady(true);
+                    setCameraLoading(false);      // ← Moved from finally block
+                    setCameraInitializing(false); // ← Moved from finally block
                   }, 300); // Shorter delay for better UX
                 }}
                 onMountError={(error) => {
@@ -2770,6 +3131,71 @@ export default function SurveyForm({ route }: any) {
           {viewerUri ? <RNImage source={{ uri: viewerUri }} style={styles.viewerImage} /> : null}
         </View>
       </Modal>
+      
+      {/* Clear Confirmation Modal */}
+      <Modal
+        visible={showClearModal}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelClearPhoto}>
+        <View style={styles.clearModalBackdrop}>
+          <View style={styles.clearModalContainer}>
+            {/* Warning Icon */}
+            <View style={styles.clearModalIcon}>
+              <Text style={styles.clearModalIconText}>⚠️</Text>
+            </View>
+            
+            {/* Title */}
+            <Text style={styles.clearModalTitle}>
+              Clear Photo?
+            </Text>
+            
+            {/* Message */}
+            <Text style={styles.clearModalMessage}>
+              Are you sure you want to clear the image for {' '}
+              <Text style={styles.clearModalHighlight}>
+                {clearingPhotoKey ? photoCardNames[clearingPhotoKey] : 'photo'}
+              </Text>
+              ? This action cannot be undone.
+            </Text>
+            
+            {/* Warning Box */}
+            <View style={styles.clearModalWarningBox}>
+              <Text style={styles.clearModalWarningText}>
+                ⚠️ This will permanently delete the photo from both device storage and database.
+              </Text>
+            </View>
+            
+            {/* Action Buttons */}
+            <View style={styles.clearModalButtonRow}>
+              {/* Cancel Button */}
+              <TouchableOpacity
+                style={[styles.clearModalBtn, styles.clearModalCancelBtn]}
+                onPress={cancelClearPhoto}
+                disabled={isClearing}>
+                <Text style={styles.clearModalCancelText}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              
+              {/* Clear Button */}
+              <TouchableOpacity
+                style={[styles.clearModalBtn, styles.clearModalConfirmBtn]}
+                onPress={confirmClearPhoto}
+                disabled={isClearing}>
+                {isClearing ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <Text style={styles.clearModalConfirmText}>
+                    Clear
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
       <Toast />
     </SafeAreaView>
     </SurveyFormErrorBoundary>
@@ -3050,5 +3476,111 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Clear Modal Styles
+  clearModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  clearModalContainer: {
+    width: '85%',
+    maxWidth: 400,
+    backgroundColor: '#1E293B',
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#EF4444',
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  clearModalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#EF4444',
+  },
+  clearModalIconText: {
+    fontSize: 32,
+  },
+  clearModalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  clearModalMessage: {
+    fontSize: 15,
+    color: '#CBD5E1',
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 22,
+  },
+  clearModalHighlight: {
+    color: '#EF4444',
+    fontWeight: 'bold',
+    fontStyle: 'italic',
+  },
+  clearModalWarningBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    borderLeftWidth: 4,
+    borderLeftColor: '#EF4444',
+    padding: 12,
+    marginVertical: 16,
+    width: '100%',
+  },
+  clearModalWarningText: {
+    fontSize: 13,
+    color: '#FCA5A5',
+    lineHeight: 18,
+  },
+  clearModalButtonRow: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+    marginTop: 8,
+  },
+  clearModalBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 50,
+  },
+  clearModalCancelBtn: {
+    backgroundColor: '#475569',
+    borderWidth: 1,
+    borderColor: '#64748B',
+  },
+  clearModalCancelText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  clearModalConfirmBtn: {
+    backgroundColor: '#DC2626',
+    borderWidth: 1,
+    borderColor: '#F87171',
+    shadowColor: '#DC2626',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  clearModalConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });
