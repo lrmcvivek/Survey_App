@@ -33,14 +33,40 @@ export interface GCPUploadResult {
  * 
  * @param filePath - Local file path of the image
  * @param destinationPath - Optional destination path in bucket (default: survey_images/)
+ * @param geographicData - Optional geographic data for hierarchical folder organization
  * @returns Upload result with URLs
  */
 export const uploadToGCP = async (
   filePath: string,
-  destinationPath: string = 'survey_images'
+  destinationPath: string = 'survey_images',
+  geographicData?: {
+    ulbName?: string;
+    zoneName?: string;
+    wardNumber?: string;
+    mohallaName?: string;
+  }
 ): Promise<GCPUploadResult> => {
   try {
     console.log('[GCP] Starting upload:', filePath);
+
+    // Build hierarchical folder path if geographic data provided
+    let fullPath = destinationPath;
+    if (geographicData) {
+      const { ulbName, zoneName, wardNumber, mohallaName } = geographicData;
+      
+      // Build path: survey_images/ULBName/ZoneNumber/WardNumber/MohallaName
+      const pathSegments = [destinationPath];
+      
+      if (ulbName) pathSegments.push(ulbName);
+      if (zoneName) pathSegments.push(zoneName);
+      if (wardNumber) pathSegments.push(wardNumber);
+      if (mohallaName) pathSegments.push(mohallaName);
+      
+      fullPath = pathSegments.join('/');
+      console.log('[GCP] Hierarchical folder path:', fullPath);
+    } else {
+      console.log('[GCP] Using default folder:', destinationPath);
+    }
 
     // Verify file exists
     if (!fs.existsSync(filePath)) {
@@ -51,7 +77,7 @@ export const uploadToGCP = async (
     
     // Generate unique object name
     const fileName = `${Date.now()}_${path.basename(filePath)}`;
-    const destination = `${destinationPath}/${fileName}`;
+    const destination = `${fullPath}/${fileName}`; // Use fullPath instead of destinationPath
 
     // Upload file to GCS
     await bucket.upload(filePath, {

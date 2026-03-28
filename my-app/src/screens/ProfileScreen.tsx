@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, Animated } from 'react-native';
+import { View, Text, ActivityIndicator, Animated, TouchableOpacity, Alert } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import Toast from 'react-native-toast-message';
 import { useNavigation } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function ProfileScreen() {
   const [profile, setProfile] = useState<any>(null);
@@ -33,6 +34,38 @@ export default function ProfileScreen() {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
+  };
+
+  // Clear assignment cache and force fresh fetch
+  const handleClearAssignmentCache = async () => {
+    Alert.alert(
+      'Clear Assignment Cache',
+      'This will clear your cached assignment data and force a fresh sync from the server. Your login session will remain intact.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear Cache',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await AsyncStorage.removeItem('primaryAssignment');
+              Toast.show({
+                type: 'success',
+                text1: 'Cache Cleared',
+                text2: 'Assignment cache has been cleared. Restart the app to fetch fresh data.',
+              });
+            } catch (error) {
+              console.error('Failed to clear cache:', error);
+              Toast.show({
+                type: 'error',
+                text1: 'Clear Failed',
+                text2: 'Failed to clear assignment cache. Please try again.',
+              });
+            }
+          },
+        },
+      ]
+    );
   };
 
   useEffect(() => {
@@ -119,6 +152,32 @@ export default function ProfileScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Clear Cache Button */}
+        <TouchableOpacity
+          onPress={handleClearAssignmentCache}
+          style={{
+            marginTop: 16,
+            padding: 16,
+            borderRadius: 12,
+            backgroundColor: theme === 'dark' ? '#dc2626' : '#ef4444',
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+          }}>
+          <Text
+            style={{
+              fontSize: 16,
+              fontWeight: '600',
+              color: '#ffffff',
+            }}>
+            🗑️ Clear Assignment Cache
+          </Text>
+        </TouchableOpacity>
+
         <Toast />
       </Animated.View>
     </SafeAreaView>

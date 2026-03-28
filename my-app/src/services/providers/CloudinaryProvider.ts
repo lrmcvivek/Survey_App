@@ -21,10 +21,20 @@ export class CloudinaryProvider implements ImageStorageProvider {
    * Upload image to Cloudinary via backend proxy
    * 
    * @param localPath - Local file path of the compressed image
+   * @param geographicData - Optional geographic data for folder organization
    * @returns Upload result with Cloudinary URL
    */
-  async uploadImage(localPath: string): Promise<UploadResult> {
+  async uploadImage(
+    localPath: string,
+    geographicData?: {
+      ulbName?: string;
+      zoneName?: string;
+      wardNumber?: string;
+      mohallaName?: string;
+    }
+  ): Promise<UploadResult> {
     console.log('CloudinaryProvider: Starting upload for:', localPath);
+    console.log('CloudinaryProvider: Geographic data:', geographicData);
     
     try {
       // Create FormData for file upload
@@ -38,6 +48,14 @@ export class CloudinaryProvider implements ImageStorageProvider {
       };
       
       formData.append('image', file);
+      
+      // Append geographic data if provided
+      if (geographicData) {
+        formData.append('ulbName', geographicData.ulbName || '');
+        formData.append('zoneName', geographicData.zoneName || '');
+        formData.append('wardNumber', geographicData.wardNumber || '');
+        formData.append('mohallaName', geographicData.mohallaName || '');
+      }
       
       console.log('CloudinaryProvider: Uploading to backend...');
       

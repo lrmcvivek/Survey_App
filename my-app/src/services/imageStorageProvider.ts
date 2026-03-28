@@ -29,9 +29,15 @@ export interface ImageStorageProvider {
    * Upload an image to the storage provider
    * 
    * @param localPath - Local file path of the compressed image
+   * @param geographicData - Optional geographic data for folder organization
    * @returns Upload result with URL and provider info
    */
-  uploadImage(localPath: string): Promise<UploadResult>;
+  uploadImage(localPath: string, geographicData?: {
+    ulbName?: string;
+    zoneName?: string;
+    wardNumber?: string;
+    mohallaName?: string;
+  }): Promise<UploadResult>;
   
   /**
    * Get the provider type

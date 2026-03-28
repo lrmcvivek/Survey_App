@@ -10,6 +10,12 @@ export type SurveyImageRow = {
   retryCount?: number; // number of failed attempts
   provider?: 'cloudinary' | 'gcp' | null; // storage provider used
   uploadedUrl?: string | null; // URL after successful upload
+  
+  // Geographic metadata for folder organization
+  ulbName?: string | null;
+  zoneName?: string | null;
+  wardNumber?: string | null;
+  mohallaName?: string | null;
 };
 
 let dbPromise: Promise<SQLiteDatabase> | null = null;
@@ -100,7 +106,11 @@ export const initializeDatabase = async (): Promise<void> => {
           status TEXT DEFAULT 'pending',
           retryCount INTEGER DEFAULT 0,
           provider TEXT,
-          uploadedUrl TEXT
+          uploadedUrl TEXT,
+          ulbName TEXT,
+          zoneName TEXT,
+          wardNumber TEXT,
+          mohallaName TEXT
         );`
       );
       
@@ -133,28 +143,40 @@ export const initializeDatabase = async (): Promise<void> => {
 };
 
 export const insertSurveyImage = async (row: SurveyImageRow): Promise<number> => {
+  console.log('[SQLite] 📝 insertSurveyImage called');
+  console.log('[SQLite] Survey ID:', row.surveyId);
+  console.log('[SQLite] Label:', row.label);
+  console.log('[SQLite] Status:', row.status || 'pending');
+  
   // Try database first - no fallback storage as per new requirements
   if (shouldAttemptDatabase()) {
     try {
+      console.log('[SQLite] Attempting database insert...');
       const db = await getDbAsync();
+      console.log('[SQLite] Database instance obtained:', !!db);
+      
       if (db) {
         await initializeDatabase();
+        console.log('[SQLite] Database initialized, executing INSERT...');
         
         const res: any = await db.runAsync(
-          `INSERT INTO SurveyImages (surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
-          [row.surveyId, row.photoUri, row.label, row.timestamp, row.status || 'pending', row.retryCount || 0, row.provider || null, row.uploadedUrl || null]
+          `INSERT INTO SurveyImages (surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl, ulbName, zoneName, wardNumber, mohallaName) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [row.surveyId, row.photoUri, row.label, row.timestamp, row.status || 'pending', row.retryCount || 0, row.provider || null, row.uploadedUrl || null, row.ulbName || null, row.zoneName || null, row.wardNumber || null, row.mohallaName || null]
         );
         
         const insertId = res?.lastInsertRowId || 0;
-        console.log('Image URI stored in database with ID:', insertId);
+        console.log('[SQLite] ✅ Insert successful! Generated ID:', insertId);
         return insertId;
       }
     } catch (error) {
-      console.error('Database insert failed:', error);
+      console.error('[SQLite] ❌ Database insert failed:', error);
+      console.error('[SQLite] Error stack:', error instanceof Error ? error.stack : 'No stack');
       isDatabaseCorrupted = true;
       lastErrorTime = Date.now();
       throw error; // Re-throw to indicate failure
     }
+  } else {
+    console.warn('[SQLite] ⚠️ shouldAttemptDatabase returned false');
   }
   
   throw new Error('Database not available for image URI storage');
@@ -249,23 +271,47 @@ export const getImagesByStatus = async (status: 'pending' | 'uploading' | 'synce
 };
 
 export const getPendingAndFailedImages = async (): Promise<SurveyImageRow[]> => {
+  console.log('[SQLite] 🔍 getPendingAndFailedImages called');
+  
   if (shouldAttemptDatabase()) {
     try {
+      console.log('[SQLite] Attempting database access...');
       const db = await getDbAsync();
+      console.log('[SQLite] Database instance obtained:', !!db);
+      
       if (db) {
         await initializeDatabase();
+        console.log('[SQLite] Database initialized, executing query...');
         
-        return await db.getAllAsync<SurveyImageRow>(
-          `SELECT id, surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl FROM SurveyImages WHERE status IN ('pending', 'failed') ORDER BY timestamp ASC;`
+        const results = await db.getAllAsync<SurveyImageRow>(
+          `SELECT id, surveyId, photoUri, label, timestamp, status, retryCount, provider, uploadedUrl, ulbName, zoneName, wardNumber, mohallaName FROM SurveyImages WHERE status IN ('pending', 'failed') ORDER BY timestamp ASC;`
         );
+        
+        console.log(`[SQLite] Query returned ${results?.length || 0} images`);
+        if (results && results.length > 0) {
+          console.log('[SQLite] Sample result:', {
+            id: results[0]?.id,
+            surveyId: results[0]?.surveyId,
+            status: results[0]?.status,
+            label: results[0]?.label
+          });
+        }
+        
+        return results || [];
+      } else {
+        console.error('[SQLite] Database instance is null/undefined');
       }
     } catch (error) {
-      console.error('Database query failed:', error);
+      console.error('[SQLite] Query failed:', error);
+      console.error('[SQLite] Error stack:', error instanceof Error ? error.stack : 'No stack');
       isDatabaseCorrupted = true;
       lastErrorTime = Date.now();
     }
+  } else {
+    console.warn('[SQLite] shouldAttemptDatabase returned false');
   }
   
+  console.warn('[SQLite] Returning empty image list');
   return [];
 };
 
@@ -280,6 +326,23 @@ export const deleteImageById = async (id: number): Promise<void> => {
       }
     } catch (error) {
       console.error('Failed to delete image by ID:', error);
+    }
+  }
+  
+  console.warn('Database not available for image deletion');
+};
+
+export const deleteImageBySurveyIdAndLabel = async (surveyId: string, label: string): Promise<void> => {
+  if (shouldAttemptDatabase()) {
+    try {
+      const db = await getDbAsync();
+      if (db) {
+        await db.runAsync(`DELETE FROM SurveyImages WHERE surveyId = ? AND label = ?;`, [surveyId, label]);
+        console.log(`Image record deleted: ${label} for survey ${surveyId}`);
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to delete image by survey ID and label:', error);
     }
   }
   

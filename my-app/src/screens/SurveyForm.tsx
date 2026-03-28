@@ -30,8 +30,9 @@ import * as Location from 'expo-location';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Feather } from '@expo/vector-icons';
 import * as FileSystem from 'expo-file-system/legacy';
-import { storeImageForSurvey, deleteImagesForSurvey } from '../services/imageStorage';
+import { storeImageForSurvey, deleteSingleImageByLabel } from '../services/imageStorage';
 import { compressImageAdaptive } from '../services/imageCompression';
+import { getPendingAndFailedImages } from '../services/sqlite';
 import React from 'react';
 
 // Local Error Boundary for Camera Modal
@@ -261,6 +262,94 @@ export default function SurveyForm({ route }: any) {
 
   // Add surveyId state to track current survey being edited or created
   const [surveyIdState, setSurveyIdState] = useState<string | undefined>(surveyId);
+  
+  // CRITICAL FIX: Check for existing draft FIRST, then generate ID only if needed
+  // This prevents duplicate IDs when restoring drafts
+  useEffect(() => {
+    const initializeSurveyId = async () => {
+      // If edit mode or surveyId provided, use that
+      if (editMode || surveyId) {
+        console.log('[SurveyID] Using provided survey ID:', surveyId);
+        safeSetState(() => setSurveyIdState(surveyId), 'setSurveyIdState_existing');
+        return;
+      }
+      
+      // For new surveys, check if there's an existing draft first
+      try {
+        console.log('[SurveyID] Checking for existing draft before generating ID...');
+        const draft = await getUnsavedDraft();
+        
+        if (draft?.surveyId) {
+          // Found draft - use its survey ID to maintain consistency
+          console.log('[SurveyID] Restoring survey ID from draft:', draft.surveyId);
+          safeSetState(() => setSurveyIdState(draft.surveyId), 'setSurveyIdState_fromDraft');
+          return;
+        }
+        
+        // No draft found - generate new survey ID
+        const newSurveyId = `survey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log('[SurveyID] Generated new survey ID on mount (no draft):', newSurveyId);
+        safeSetState(() => setSurveyIdState(newSurveyId), 'setSurveyIdState_initial');
+        
+      } catch (error) {
+        console.error('[SurveyID] Failed to check for draft, generating new ID:', error);
+        // Fallback: generate new ID
+        const newSurveyId = `survey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        safeSetState(() => setSurveyIdState(newSurveyId), 'setSurveyIdState_fallback');
+      }
+    };
+    
+    initializeSurveyId();
+  }, []); // Run ONCE on mount
+
+  // CRITICAL FIX: Load existing photos from database when surveyId is available
+  // This prevents photo orphaning when user navigates back and forth
+  useEffect(() => {
+    const loadExistingPhotos = async () => {
+      const currentSurveyId = surveyId || surveyIdState;
+      
+      if (!currentSurveyId) {
+        return; // No survey ID yet, can't load photos
+      }
+      
+      try {
+        console.log(`[PhotoSync] Loading existing photos for survey: ${currentSurveyId}`);
+        const allImages = await getPendingAndFailedImages();
+        const surveyImages = allImages?.filter(img => img.surveyId === currentSurveyId) || [];
+        
+        console.log(`[PhotoSync] Found ${surveyImages.length} existing photos in database`);
+        
+        if (surveyImages.length > 0) {
+          // Build photo object from database records
+          const loadedPhotos: { [key: string]: string | null } = {
+            khasra: null,
+            front: null,
+            left: null,
+            right: null,
+            other1: null,
+            other2: null,
+          };
+          
+          surveyImages.forEach(img => {
+            if (img.label && img.photoUri) {
+              loadedPhotos[img.label] = img.photoUri;
+              console.log(`[PhotoSync] Loaded ${img.label} from database: ${img.photoUri.substring(img.photoUri.lastIndexOf('/') + 1)}`);
+            }
+          });
+          
+          // Update both state and ref
+          setPhotos(loadedPhotos);
+          photosRef.current = loadedPhotos;
+          console.log('[PhotoSync] Photos loaded successfully into state and ref');
+        }
+      } catch (error) {
+        console.error('[PhotoSync] Failed to load existing photos:', error);
+        // Non-critical, continue with empty photos
+      }
+    };
+    
+    loadExistingPhotos();
+  }, [surveyId, surveyIdState]); // Run when surveyId becomes available
   const [photos, setPhotos] = useState<{ [key: string]: string | null }>({
     khasra: null,
     front: null,
@@ -395,16 +484,14 @@ export default function SurveyForm({ route }: any) {
       console.log('[SaveCompleteDraft] formDataRef current keys:', Object.keys(formDataRef.current).length);
       console.log('[SaveCompleteDraft] photosRef current:', JSON.stringify(photosRef.current));
       
-      // Ensure survey ID exists - generate one if needed
-      let currentSurveyId = surveyIdState;
+      // CRITICAL FIX: Use existing surveyIdState ONLY - never generate new IDs
+      // The survey ID should already exist from the initial mount useEffect
+      const currentSurveyId = surveyIdState;
       
       if (!currentSurveyId) {
-        console.warn('[SaveCompleteDraft] No survey ID available, generating temporary ID...');
-        currentSurveyId = `temp_survey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        console.log('[SaveCompleteDraft] Generated survey ID:', currentSurveyId);
-        
-        // Set it in state for future use (async, won't block save)
-        safeSetState(() => setSurveyIdState(currentSurveyId), 'setSurveyIdState_save');
+        console.error('[SaveCompleteDraft] No survey ID available - this should not happen!');
+        console.error('[SaveCompleteDraft] Survey form was not properly initialized on mount');
+        return; // Skip draft save if no ID - prevents creating duplicate IDs
       }
       
       if (!componentMounted.current) {
@@ -534,16 +621,15 @@ export default function SurveyForm({ route }: any) {
   const handleExit = async () => {
     console.log('=== User confirmed exit - preparing safe navigation ===');
     
-    // Ensure we have a survey ID for draft saving
-    let currentSurveyId = surveyIdState;
+    // CRITICAL FIX: Use existing surveyIdState ONLY - never generate new IDs
+    const currentSurveyId = surveyIdState;
     
     if (!currentSurveyId) {
-      // Generate a temporary survey ID for this session
-      currentSurveyId = `temp_survey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      console.log('[HandleExit] No survey ID found, generated temporary ID:', currentSurveyId);
-      
-      // Set it in state for future use
-      safeSetState(() => setSurveyIdState(currentSurveyId), 'setSurveyIdState_exit');
+      console.error('[HandleExit] No survey ID available - this should not happen!');
+      console.error('[HandleExit] Survey form was not properly initialized on mount');
+      // Still navigate back, but skip draft save to prevent data corruption
+      navigation.goBack();
+      return;
     }
     
     // Save draft before exiting (for recovery) - this will UPDATE existing draft or create new one
@@ -772,6 +858,9 @@ export default function SurveyForm({ route }: any) {
             console.log('[SurveyForm] Found draft, attempting restoration...');
             console.log('[SurveyForm] Draft surveyId:', draft?.surveyId);
             console.log('[SurveyForm] Current surveyIdState:', surveyIdState);
+            
+            // Note: surveyIdState is already set from draft in the mount useEffect (lines 268-304)
+            // This ensures consistency before any restoration happens
             
             // Validate expiry (30 minutes)
             const age = Date.now() - (draft?.timestamp || 0);
@@ -1238,14 +1327,23 @@ export default function SurveyForm({ route }: any) {
         }
         
         // CRITICAL: Ensure we have a survey ID before opening camera
+        // FIX: Wait for surveyIdState instead of generating new ID
         let currentSurveyId = surveyIdState;
+        
         if (!currentSurveyId) {
-          currentSurveyId = `temp_survey_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-          console.log('[CAMERA] 🆔 Generated temp survey ID before capture:', currentSurveyId);
-          safeSetState(() => setSurveyIdState(currentSurveyId), 'setSurveyIdState_preCapture');
+          console.error('[CAMERA] No survey ID available - survey form not properly initialized');
+          console.error('[CAMERA] Please wait for form to load before capturing photos');
+          Alert.alert(
+            'Form Not Ready',
+            'Please wait a moment for the form to initialize before taking photos.',
+            [{ text: 'OK' }]
+          );
+          setCameraInitializing(false);
+          setCameraLoading(false);
+          return;
         }
         
-        // Reset camera ready state
+        console.log('[CAMERA] 🆔 Using survey ID:', currentSurveyId);
         setCameraReady(false);
         
         // Small delay to ensure all state updates are processed
@@ -1460,7 +1558,8 @@ export default function SurveyForm({ route }: any) {
             setPhotos((prev) => {
               console.log('[CAMERA] Setting photo for key:', captureKey, 'URI length:', finalUri?.length);
               const newPhotos = { ...prev, [captureKey]: finalUri };
-              console.log('[CAMERA] New photo state created successfully');
+              photosRef.current = newPhotos; // Update ref immediately
+              console.log('[CAMERA] New photo state created successfully, ref updated');
               return newPhotos;
             });
           } catch (innerError) {
@@ -1552,13 +1651,16 @@ export default function SurveyForm({ route }: any) {
             return;
           }
           
-          if (!surveyIdState) {
-            const tempSurveyId = `temp_survey_${captureTime}_${Math.random().toString(36).substr(2, 9)}`;
-            safeSetState(() => setSurveyIdState(tempSurveyId), 'setSurveyIdState_background');
-            console.log('[Camera] Generated temporary survey ID for storage:', tempSurveyId);
-          }
+          // CRITICAL FIX: Use existing surveyIdState ONLY - never generate new IDs
+          // Photos must be associated with the same survey ID from mount
+          const finalSurveyId = surveyIdState;
           
-          const finalSurveyId = surveyIdState || `temp_survey_${captureTime}_${Math.random().toString(36).substr(2, 9)}`;
+          if (!finalSurveyId) {
+            console.error('[Camera] No survey ID available for photo storage - this should not happen!');
+            console.error('[Camera] Survey form was not properly initialized on mount');
+            cleanupOperation();
+            return; // Skip photo storage to prevent orphaned images
+          }
           
           // Triple-check before proceeding
           if (!componentMounted.current || !activeOperations.current.has(operationId)) {
@@ -1570,18 +1672,42 @@ export default function SurveyForm({ route }: any) {
           console.log('[STORAGE] 📷 Capture key:', captureKey);
           console.log('[STORAGE] 🖼️ Photo URI length:', finalUri?.length);
           
+          // CRITICAL: Extract geographic data from assignment for hierarchical storage
+          console.log('[STORAGE] Assignment object debug:');
+          console.log('  assignment.ulb:', assignment.ulb);
+          console.log('  assignment.zone:', assignment.zone);
+          console.log('  assignment.ward:', assignment.ward);
+          console.log('  assignment.ward keys:', assignment.ward ? Object.keys(assignment.ward) : 'N/A');
+          console.log('  assignment.ward.newWardNumber:', assignment.ward?.newWardNumber);
+          console.log('  assignment.ward.oldWardNumber:', assignment.ward?.oldWardNumber);
+          console.log('  assignment.ward.wardName:', assignment.ward?.wardName);
+          
+          const geographicData = assignment ? {
+            ulbName: assignment.ulb?.ulbName || undefined,
+            zoneName: assignment.zone?.zoneName || undefined,
+            wardNumber: assignment.ward?.newWardNumber || assignment.ward?.oldWardNumber || undefined,
+            mohallaName: assignment.mohallas?.[0]?.mohallaName || undefined,
+          } : undefined;
+          
+          console.log('[STORAGE] 📍 Geographic data:', geographicData);
+          
           // Try to store in database (background, non-blocking)
           const storedUri = await storeImageForSurvey(
             finalSurveyId,
             finalUri,
-            String(captureKey)
+            String(captureKey),
+            geographicData
           );
           
           console.log('[STORAGE] ✅ Storage completed, returned URI length:', storedUri?.length);
           
           // Update UI with stored URI if successful and component still mounted
           if (componentMounted.current && activeOperations.current.has(operationId)) {
-            safeSetState(() => setPhotos((prev) => ({ ...prev, [captureKey]: storedUri })), 'setPhotos_backgroundStorage');
+            safeSetState(() => setPhotos((prev) => {
+              const newPhotos = { ...prev, [captureKey]: storedUri };
+              photosRef.current = newPhotos; // Update ref immediately
+              return newPhotos;
+            }), 'setPhotos_backgroundStorage');
             console.log('[STORAGE] Background storage completed:', storedUri?.substring(0, 100) + '...');
           }
           
@@ -1655,16 +1781,40 @@ export default function SurveyForm({ route }: any) {
           console.warn('[IMAGE] ⚠️ No survey ID available for deletion');
         }
         
-        // Delete from storage using existing service
-        await deleteImagesForSurvey(surveyIdState || '');
-        console.log('[IMAGE] ✅ Deleted from storage');
+        // Delete ONLY THIS SPECIFIC PHOTO from database (not all photos!)
+        if (surveyIdState) {
+          try {
+            console.log('[IMAGE] 🗑️ Deleting single image from database:', clearingPhotoKey);
+            await deleteSingleImageByLabel(surveyIdState, String(clearingPhotoKey));
+            console.log('[IMAGE] ✅ Single image deleted from database');
+          } catch (dbError) {
+            console.error('[IMAGE] ❌ Failed to delete from database:', dbError);
+            // Continue with local file deletion even if DB fails
+          }
+        }
+        
+        // Delete local file
+        try {
+          console.log('[IMAGE] 🗑️ Deleting local file:', photoUri);
+          const fileInfo = await FileSystem.getInfoAsync(photoUri);
+          if (fileInfo.exists) {
+            await FileSystem.deleteAsync(photoUri, { idempotent: true });
+            console.log('[IMAGE] ✅ Deleted local file');
+          }
+        } catch (fileError) {
+          console.error('[IMAGE] ❌ Failed to delete local file:', fileError);
+        }
         
         // Remove from state with validation
         safeSetState(() => {
-          setPhotos(prev => ({
-            ...prev,
-            [clearingPhotoKey]: null,
-          }));
+          setPhotos(prev => {
+            const newPhotos = {
+              ...prev,
+              [clearingPhotoKey]: null,
+            };
+            photosRef.current = newPhotos; // Update ref immediately
+            return newPhotos;
+          });
         }, 'clearPhoto_state');
         
         console.log('[IMAGE] ✨ Photo cleared successfully');
@@ -1850,18 +2000,9 @@ export default function SurveyForm({ route }: any) {
   // Assignment data is now loaded and pre-filled ONCE during initial load (lines 896-960)
   // This prevents re-renders during form filling that were causing crashes.
 
-  // Update refs when state changes (MUST be separate useEffects at top level)
-  useEffect(() => {
-    if (componentMounted.current) {
-      formDataRef.current = formData;
-    }
-  }, [formData]);
-  
-  useEffect(() => {
-    if (componentMounted.current) {
-      photosRef.current = photos;
-    }
-  }, [photos]);
+  // REMOVED: Dangerous useEffects with [formData] and [photos] dependencies!
+  // These were causing re-renders during form filling that led to crashes.
+  //Refs are now updated directly in handleInputChange and photo handlers instead.
 
   const createDropdownOptions = (items: any[], labelKey: string, valueKey: string) => {
     if (!items) return [{ label: 'No selection', value: 0 }];
@@ -1933,9 +2074,13 @@ export default function SurveyForm({ route }: any) {
       
       lastInputChangeTime.current[name] = now;
       
-      // Direct state update for responsive UX - wrapped in safeSetState
+      // Update state AND ref together (no useEffect needed!)
       safeSetState(() => {
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData((prev) => {
+          const newFormData = { ...prev, [name]: value };
+          formDataRef.current = newFormData; // Update ref immediately
+          return newFormData;
+        });
       }, `inputChange_${String(name)}`);
       
     } catch (error) {
@@ -2176,8 +2321,11 @@ export default function SurveyForm({ route }: any) {
               Alert.alert('Updated', 'Survey updated locally.');
             }
           } else {
-            // fallback: treat as new
-            idToUse = `survey_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+            // CRITICAL FIX: Use surveyIdState instead of generating new ID
+            // This ensures consistency with photos and drafts
+            idToUse = surveyIdState || `survey_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+            console.log('[SaveSurvey] Using survey ID:', idToUse);
+            
             surveyToSave = {
               id: idToUse,
               data: {
@@ -2219,8 +2367,11 @@ export default function SurveyForm({ route }: any) {
           return;
         }
       } else {
-        // Create new survey
-        idToUse = `survey_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        // CRITICAL FIX: Use surveyIdState instead of generating new ID
+        // This ensures consistency with photos and drafts
+        idToUse = surveyIdState || `survey_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+        console.log('[SaveSurvey] Creating new survey with ID:', idToUse);
+        
         surveyToSave = {
           id: idToUse,
           data: {

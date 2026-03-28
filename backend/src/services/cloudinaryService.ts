@@ -28,15 +28,41 @@ export interface CloudinaryUploadResult {
  * Upload image to Cloudinary
  * 
  * @param filePath - Local file path of the image
- * @param folder - Optional folder name in Cloudinary
+ * @param folder - Optional folder name in Cloudinary (defaults to 'ptms_survey_images')
+ * @param geographicData - Optional geographic data for hierarchical folder structure
  * @returns Upload result with URLs
  */
 export const uploadToCloudinary = async (
   filePath: string,
-  folder: string = 'ptms_survey_images'
+  folder: string = 'ptms_survey_images',
+  geographicData?: {
+    ulbName?: string;
+    zoneName?: string;
+    wardNumber?: string;
+    mohallaName?: string;
+  }
 ): Promise<CloudinaryUploadResult> => {
   try {
     console.log('[Cloudinary] Starting upload:', filePath);
+
+    // Build hierarchical folder path if geographic data provided
+    let fullPath = folder;
+    if (geographicData) {
+      const { ulbName, zoneName, wardNumber, mohallaName } = geographicData;
+      
+      // Build path: ptms_survey_images/ULBName/ZoneNumber/WardNumber/MohallaName
+      const pathSegments = [folder];
+      
+      if (ulbName) pathSegments.push(ulbName);
+      if (zoneName) pathSegments.push(zoneName);
+      if (wardNumber) pathSegments.push(wardNumber);
+      if (mohallaName) pathSegments.push(mohallaName);
+      
+      fullPath = pathSegments.join('/');
+      console.log('[Cloudinary] Hierarchical folder path:', fullPath);
+    } else {
+      console.log('[Cloudinary] Using default folder:', folder);
+    }
 
     // Verify file exists
     if (!fs.existsSync(filePath)) {
@@ -48,7 +74,7 @@ export const uploadToCloudinary = async (
       cloudinary.uploader.upload(
         filePath,
         {
-          folder,
+          folder: fullPath, // Use hierarchical path
           resource_type: 'image',
           transformation: [
             { quality: 'auto' }, // Use Cloudinary's auto-quality optimization

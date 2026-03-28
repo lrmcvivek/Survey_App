@@ -212,8 +212,29 @@ export default function SurveyorDashboard() {
     try {
       console.log('Dashboard: Loading primary assignment...');
       const json = await AsyncStorage.getItem('primaryAssignment');
+      
       if (json) {
         const parsed = JSON.parse(json);
+        
+        // CHECK: If ward number fields are missing, force refresh from backend
+        if (parsed.ward && !parsed.ward.newWardNumber && !parsed.ward.oldWardNumber) {
+          console.log('Dashboard: Detected stale assignment cache (missing ward numbers), refreshing from backend...');
+          // Fetch fresh assignment data from backend
+          const data = await fetchSurveyorAssignments();
+          const activeAssignments = (data.assignments || []).filter((a: any) => a.isActive === true);
+          const matchingAssignment = activeAssignments.find(
+            (a: any) => a.assignmentId === parsed.assignmentId
+          );
+          
+          if (matchingAssignment) {
+            console.log('Dashboard: Refreshed assignment with ward numbers:', matchingAssignment.ward);
+            await AsyncStorage.setItem('primaryAssignment', JSON.stringify(matchingAssignment));
+            setPrimaryAssignment(matchingAssignment);
+            return;
+          } else {
+            console.warn('Dashboard: Could not find matching assignment, using cached version');
+          }
+        }
         
         // Check if the stored primary assignment is still active
         if (parsed.isActive === false) {
@@ -228,8 +249,23 @@ export default function SurveyorDashboard() {
           setPrimaryAssignment(parsed);
         }
       } else {
-        console.log('Dashboard: No primary assignment found');
-        setPrimaryAssignment(null);
+        // NO CACHE - Force fetch from backend and auto-select first active assignment
+        console.log('Dashboard: No cached assignment found, fetching from backend...');
+        const data = await fetchSurveyorAssignments();
+        const activeAssignments = (data.assignments || []).filter((a: any) => a.isActive === true);
+        
+        if (activeAssignments.length > 0) {
+          console.log('Dashboard: Found', activeAssignments.length, 'active assignment(s), auto-selecting first one');
+          const firstAssignment = activeAssignments[0];
+          await AsyncStorage.setItem('primaryAssignment', JSON.stringify(firstAssignment));
+          setPrimaryAssignment(firstAssignment);
+          await setSelectedAssignment(firstAssignment);
+          console.log('Dashboard: Auto-selected assignment:', firstAssignment.assignmentId);
+          console.log('Dashboard: Ward data:', firstAssignment.ward);
+        } else {
+          console.log('Dashboard: No active assignments available');
+          setPrimaryAssignment(null);
+        }
       }
     } catch (error) {
       console.error('Dashboard: Error loading primary assignment:', error);
@@ -400,6 +436,10 @@ export default function SurveyorDashboard() {
           {
             text: 'Continue Ongoing',
             onPress: () => {
+              console.log('[Dashboard] Continuing ongoing survey:', ongoingSurvey.id);
+              console.log('[Dashboard] Survey type:', ongoingSurvey.surveyType);
+              console.log('[Dashboard] Survey data keys:', Object.keys(ongoingSurvey.data || {}));
+              
               Alert.alert(
                 'Continue Survey',
                 `Do you want to continue the ongoing ${ongoingSurvey.surveyType} survey?`,
@@ -407,11 +447,13 @@ export default function SurveyorDashboard() {
                   { text: 'Cancel', style: 'cancel' },
                   {
                     text: 'Continue',
-                    onPress: () =>
+                    onPress: () => {
+                      console.log('[Dashboard] Navigating to SurveyIntermediate with ID:', ongoingSurvey.id);
                       navigation.navigate('SurveyIntermediate', {
                         surveyId: ongoingSurvey.id,
                         surveyType: ongoingSurvey.surveyType,
-                      }),
+                      });
+                    },
                   },
                 ]
               );

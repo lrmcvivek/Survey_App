@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { deleteImagesBySurveyId, getImagesBySurveyId, insertSurveyImage } from './sqlite';
+import { deleteImagesBySurveyId, getImagesBySurveyId, insertSurveyImage, deleteImageBySurveyIdAndLabel } from './sqlite';
 
 /**
  * Comprehensive image management following user requirements:
@@ -32,7 +32,13 @@ const ensureSurveyImageDirectory = async (): Promise<void> => {
 export const storeImageForSurvey = async (
   surveyId: string,
   tempImageUri: string,
-  label: string
+  label: string,
+  geographicData?: {
+    ulbName?: string;
+    zoneName?: string;
+    wardNumber?: string;
+    mohallaName?: string;
+  }
 ): Promise<string> => {
   try {
     console.log(`[IMAGE] 💾 Starting safe image storage`);
@@ -83,8 +89,18 @@ export const storeImageForSurvey = async (
         retryCount: 0,
         provider: null,
         uploadedUrl: null,
+        ulbName: geographicData?.ulbName || null,
+        zoneName: geographicData?.zoneName || null,
+        wardNumber: geographicData?.wardNumber || null,
+        mohallaName: geographicData?.mohallaName || null,
       });
       console.log('[IMAGE] ✅ Database record created successfully');
+      console.log('[IMAGE] 📍 Geographic data:', {
+        ulbName: geographicData?.ulbName,
+        zoneName: geographicData?.zoneName,
+        wardNumber: geographicData?.wardNumber,
+        mohallaName: geographicData?.mohallaName,
+      });
     } catch (dbError) {
       console.error('[IMAGE] ⚠️ Database storage failed (non-critical):', dbError);
       // Continue with file storage even if database fails
@@ -123,6 +139,51 @@ export const getImagesForSurvey = async (surveyId: string | null): Promise<{ lab
   } catch (error) {
     console.error(`Failed to get images for survey ${surveyId}:`, error);
     return [];
+  }
+};
+
+/**
+ * Delete a single image by label from both storage and SQLite
+ * Used when user clears a specific photo (not all photos)
+ */
+export const deleteSingleImageByLabel = async (surveyId: string, label: string): Promise<void> => {
+  try {
+    console.log(`[IMAGE] 🗑️ Deleting single image: ${label} for survey: ${surveyId}`);
+    
+    // Get the image record from database
+    const imageRecords = await getImagesBySurveyId(surveyId);
+    const targetRecord = imageRecords.find(record => record.label === label);
+    
+    if (!targetRecord) {
+      console.warn('[IMAGE] ⚠️ Image not found in database:', label);
+      return;
+    }
+    
+    // Delete physical file from storage
+    try {
+      console.log('[IMAGE] 📄 Checking file:', targetRecord.photoUri);
+      const fileInfo = await FileSystem.getInfoAsync(targetRecord.photoUri);
+      if (fileInfo.exists) {
+        console.log('[IMAGE] 🗑️ Deleting file:', targetRecord.photoUri);
+        await FileSystem.deleteAsync(targetRecord.photoUri, { idempotent: true });
+        console.log('[IMAGE] ✅ Deleted image file:', targetRecord.photoUri);
+      } else {
+        console.log('[IMAGE] ⚠️ File not found (already deleted?):', targetRecord.photoUri);
+      }
+    } catch (fileError) {
+      console.error('[IMAGE] ❌ Failed to delete image file:', targetRecord.photoUri, ':', fileError);
+    }
+    
+    // Delete record from SQLite database
+    console.log('[IMAGE] 🗄️ Deleting SQLite record...');
+    await deleteImageBySurveyIdAndLabel(surveyId, label);
+    console.log('[IMAGE] ✅ Database record deleted');
+    
+    console.log('[IMAGE] ✨ Single image deletion completed successfully');
+    
+  } catch (error) {
+    console.error(`[IMAGE] ❌ Failed to delete single image ${label}:`, error);
+    throw error;
   }
 };
 

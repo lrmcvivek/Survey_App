@@ -128,10 +128,13 @@ export const CreateSurveyDtoSchema = z.object({
   otherDetails: OtherDetailsSchema,
   residentialPropertyAssessments: z.array(ResidentialPropertyAssessmentSchema).optional().nullable(),
   nonResidentialPropertyAssessments: z.array(NonResidentialPropertyAssessmentSchema).optional().nullable(),
+  propertyAttachments: z.record(z.string()).optional().nullable(), // Image URLs from cloud storage
 }).superRefine((data, ctx) => {
   const surveyTypeId = data.surveyDetails?.surveyTypeId;
   const surveyTypeName = surveyTypeIdToName[surveyTypeId];
   const propertyTypeId = data.locationDetails?.propertyTypeId;
+  
+  // For Residential and Mixed surveys, propertyTypeId is REQUIRED
   if (surveyTypeName === 'RESIDENTIAL' || surveyTypeName === 'MIX') {
     if (!propertyTypeId) {
       ctx.addIssue({
@@ -140,15 +143,9 @@ export const CreateSurveyDtoSchema = z.object({
         path: ['locationDetails', 'propertyTypeId'],
       });
     }
-  } else if (surveyTypeName === 'NON RESIDENTIAL') {
-    if (propertyTypeId) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'propertyTypeId should not be present for Non-Residential survey type.',
-        path: ['locationDetails', 'propertyTypeId'],
-      });
-    }
   }
+  // For Non-Residential surveys, propertyTypeId is OPTIONAL
+  // (Some Non-Residential properties may have propertyTypeId for PLOT/LAND, others won't)
 });
 
 export type CreateSurveyDto = z.infer<typeof CreateSurveyDtoSchema>; 
