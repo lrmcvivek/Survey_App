@@ -74,7 +74,7 @@ export default function QCEditFilterPage() {
 
   return (
     <MainLayout>
-      <div className="min-w-full mx-auto">
+      <div className="w-full">
         <div className="border rounded shadow bg-black">
           <div className="bg-sky-900 text-white text-lg font-bold px-6 py-2 rounded-t border-2 border-gray-900">
             QC Edit - Property Review

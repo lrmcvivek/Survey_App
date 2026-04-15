@@ -169,6 +169,9 @@ function UserAssignmentsTable({
               <th className="px-6 py-3 text-left text-xs font-medium text-blue-400 uppercase tracking-wider">
                 Assigned By
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-blue-400 uppercase tracking-wider">
+                Type
+              </th>
               <th className="px-6 py-3 text-center text-xs font-medium text-blue-400 uppercase tracking-wider">
                 Status
               </th>
@@ -203,6 +206,15 @@ function UserAssignmentsTable({
                   <div className="text-sm text-gray-300">
                     {a.assignedBy?.name || a.assignedBy?.username || "-"}
                   </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 py-1 text-xs font-bold rounded-full ${
+                    a.assignmentType === 'PRIMARY' 
+                      ? 'bg-blue-100 text-blue-800 border border-blue-200' 
+                      : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                  }`}>
+                    {a.assignmentType || 'N/A'}
+                  </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-center">
                   <button

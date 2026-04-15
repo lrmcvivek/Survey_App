@@ -171,4 +171,65 @@ export const createSurvey = async (surveyData: CreateSurveyDto & { propertyAttac
 
     return newSurvey;
   });
+};
+
+export const getSurveyByGisId = async (gisId: string) => {
+  return prisma.surveyDetails.findMany({
+    where: { gisId },
+    include: {
+      ulb: true,
+      zone: true,
+      ward: true,
+      mohalla: true,
+      surveyType: true,
+      uploadedBy: {
+        select: {
+          userId: true,
+          username: true,
+          name: true,
+        }
+      },
+      propertyDetails: {
+        include: {
+          responseType: true,
+          respondentStatus: true,
+        }
+      },
+      ownerDetails: true,
+      locationDetails: {
+        include: {
+          roadType: true,
+          constructionType: true,
+          propertyType: true,
+        }
+      },
+      otherDetails: {
+        include: {
+          waterSource: true,
+          disposalType: true,
+        }
+      },
+      propertyAttachments: true,
+      residentialPropertyAssessments: {
+        include: {
+          floorMaster: true,
+          occupancyStatus: true,
+          constructionNature: true,
+        }
+      },
+      nonResidentialPropertyAssessments: {
+        include: {
+          floorMaster: true,
+          nrPropertyCategory: true,
+          nrSubCategory: true,
+          occupancyStatus: true,
+          constructionNature: true,
+        }
+      },
+      surveyStatusMaps: {
+        where: { isActive: true },
+        include: { status: true }
+      }
+    }
+  });
 }; 

@@ -1,8 +1,20 @@
 import { Router } from 'express';
-import { submitSurvey } from '../controllers/surveyController';
+import { submitSurvey, getSurveyByGisId } from '../controllers/surveyController';
 import { authenticateJWT, restrictToRoles, restrictToWebPortal } from '../middleware/authMiddleware';
 
 const router = Router();
+
+// ========================================
+// SURVEY SEARCH ROUTES
+// ========================================
+
+// Get survey by GIS ID
+router.get(
+  '/gis/:gisId',
+  authenticateJWT,
+  restrictToWebPortal,
+  getSurveyByGisId
+);
 
 // ========================================
 // SURVEY SUBMISSION ROUTES (MOBILE APP)

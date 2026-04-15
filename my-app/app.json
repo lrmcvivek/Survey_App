@@ -45,7 +45,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "EXPO_PUBLIC_API_BASE_URL": "http://192.168.18.184:4000/api"
+      "EXPO_PUBLIC_API_BASE_URL": "http://192.168.18.182:4000/api"
     },
     "experiments": {
       "tsconfigPaths": true

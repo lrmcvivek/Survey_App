@@ -103,17 +103,30 @@ export const bulkAssign = async (data: any) => {
         // Merge mohallaIds (avoid duplicates)
         const newMohallaIds = Array.from(new Set([...userAssignment.mohallaIds, ...toAssign]));
         const old_value = { mohallaIds: userAssignment.mohallaIds };
+        
+        // If it's a developer or admin tool, we might need to keep the type, 
+        // but here we follow the "first is primary, rest are secondary" rule
+        // However, if it's already PRIMARY, keep it PRIMARY.
+        const updatedAssignmentType = userAssignment.assignmentType === 'PRIMARY' ? 'PRIMARY' : 'SECONDARY';
+
         await prisma.surveyorAssignment.update({
           where: { assignmentId: userAssignment.assignmentId },
-          data: { mohallaIds: newMohallaIds, assignmentType, assignedById },
+          data: { mohallaIds: newMohallaIds, assignmentType: updatedAssignmentType, assignedById },
         });
         const new_value = { mohallaIds: newMohallaIds };
         await logAudit({ userId: assignedById, action: 'Assignment updated', old_value, new_value });
       } else {
+        // Check if user already has ANY active assignment
+        const existingAnyAssignment = await prisma.surveyorAssignment.findFirst({
+          where: { userId, isActive: true }
+        });
+        
+        const finalAssignmentType = existingAnyAssignment ? 'SECONDARY' : 'PRIMARY';
+
         const newAssignment = await prisma.surveyorAssignment.create({
           data: {
             userId,
-            assignmentType,
+            assignmentType: finalAssignmentType,
             wardId,
             mohallaIds: toAssign,
             assignedById,
@@ -226,6 +239,23 @@ export const getAssignmentsByWard = async (wardId: string) => {
 // Update isActive for an assignment
 export const updateAssignmentStatus = async (assignmentId: string, isActive: boolean, actingUserId?: string) => {
   const oldAssignment = await prisma.surveyorAssignment.findUnique({ where: { assignmentId } });
+  if (!oldAssignment) throw new Error('Assignment not found');
+
+  // If deactivating, check for survey data
+  if (!isActive) {
+    const surveyCount = await prisma.surveyDetails.count({
+      where: {
+        uploadedById: oldAssignment.userId,
+        wardId: oldAssignment.wardId,
+        mohallaId: { in: oldAssignment.mohallaIds }
+      }
+    });
+
+    if (surveyCount > 0) {
+      throw new Error(`Cannot deactivate assignment: ${surveyCount} surveys already submitted for this ward/mohalla.`);
+    }
+  }
+
   const updated = await prisma.surveyorAssignment.update({
     where: { assignmentId },
     data: { isActive },
@@ -237,6 +267,21 @@ export const updateAssignmentStatus = async (assignmentId: string, isActive: boo
 // Delete an assignment (hard delete)
 export const deleteAssignment = async (assignmentId: string, actingUserId?: string) => {
   const oldAssignment = await prisma.surveyorAssignment.findUnique({ where: { assignmentId } });
+  if (!oldAssignment) throw new Error('Assignment not found');
+
+  // Check for survey data before deletion
+  const surveyCount = await prisma.surveyDetails.count({
+    where: {
+      uploadedById: oldAssignment.userId,
+      wardId: oldAssignment.wardId,
+      mohallaId: { in: oldAssignment.mohallaIds }
+    }
+  });
+
+  if (surveyCount > 0) {
+    throw new Error(`Cannot delete assignment: ${surveyCount} surveys already submitted for this ward/mohalla. You can only deactivate it if permitted.`);
+  }
+
   const wardId = oldAssignment?.wardId;
   await prisma.surveyorAssignment.delete({
     where: { assignmentId },

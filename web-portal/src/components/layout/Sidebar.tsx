@@ -574,7 +574,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     },
     {
       name: "Survey Management",
-      href: "/surveys",
+      href: "#",
       icon: (
         <svg
           className="h-5 w-5"
@@ -591,6 +591,28 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         </svg>
       ),
       roles: ["SUPERADMIN", "ADMIN"],
+      children: [
+        {
+          name: "Manage Surveys",
+          href: "/surveys",
+          roles: ["SUPERADMIN", "ADMIN"],
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          ),
+        },
+        {
+          name: "Add New ID",
+          href: "/surveys/add-new-id",
+          roles: ["SUPERADMIN", "ADMIN"],
+          icon: (
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          ),
+        },
+      ],
     },
     {
       name: "Reports & Analytics",

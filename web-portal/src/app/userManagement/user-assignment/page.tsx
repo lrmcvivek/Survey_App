@@ -498,34 +498,6 @@ const UserAssignmentPage: React.FC = () => {
                   >
                     {wardsLoading ? "Loading..." : "Refresh Wards"}
                   </Button>
-                  {/* Debug Button - Remove in production */}
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        // Use first ward's wardId for debugging if available
-                        const wardId = wards.length > 0 ? wards[0].wardId : null;
-                        if (!wardId) {
-                          alert("No wards available to debug");
-                          return;
-                        }
-                        console.log("Debugging ward:", wardId);
-                        const debugInfo = await masterDataApi.debugWardStatus(
-                          wardId
-                        );
-                        console.log("Debug info:", debugInfo);
-                        alert(
-                          `Debug info logged to console for ward: ${wardId}`
-                        );
-                      } catch (error) {
-                        console.error("Debug error:", error);
-                        alert("Debug failed - check console");
-                      }
-                    }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                  >
-                    Debug Ward
-                  </Button>
                 </div>
               </div>
               {wardsLoading ? (

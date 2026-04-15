@@ -285,7 +285,7 @@ export default function ZoneMasterPage() {
                       type="text"
                       value={editFormData.zoneNumber}
                       onChange={(e) => setEditFormData({ ...editFormData, zoneNumber: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white"
+                      className="w-full px-3 py-2 border-2 border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white"
                       placeholder="Enter zone number"
                       required
                     />
@@ -303,7 +303,7 @@ export default function ZoneMasterPage() {
                       type="text"
                       value={editFormData.zoneName}
                       onChange={(e) => setEditFormData({ ...editFormData, zoneName: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white"
+                      className="w-full px-3 py-2 border-2 border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white"
                       placeholder="Enter zone name"
                       required
                     />
@@ -320,7 +320,7 @@ export default function ZoneMasterPage() {
                     <textarea
                       value={editFormData.description}
                       onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white resize-none"
+                      className="w-full px-3 py-2 border-2 border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white resize-none"
                       rows={3}
                       placeholder="Enter zone description (optional)"
                     />

@@ -451,6 +451,16 @@ export const surveyApi = {
     const response = await apiClient.get('/api/surveys/search', { params });
     return response.data;
   },
+
+  submitSurvey: async (data: any): Promise<any> => {
+    const response = await apiClient.post('/api/surveys/submit', data);
+    return response.data;
+  },
+
+  getSurveyByGisId: async (gisId: string): Promise<any> => {
+    const response = await apiClient.get(`/api/surveys/gis/${gisId}`);
+    return response.data;
+  },
 };
 
 // Reports API
@@ -706,6 +716,17 @@ export const masterDataApi = {
   // Survey Type Master Data
   getSurveyTypes: async (): Promise<any[]> => {
     const response = await apiClient.get('/api/master-data/survey-types');
+    return response.data;
+  },
+
+  getAllMasterData: async (): Promise<any> => {
+    const response = await apiClient.get('/api/master-data/all');
+    return response.data;
+  },
+  
+  getNrPropertySubCategories: async (categoryId?: number): Promise<any[]> => {
+    const params = categoryId ? { categoryId } : {};
+    const response = await apiClient.get('/api/master-data/nr-property-sub-categories', { params });
     return response.data;
   },
 };
