@@ -16,13 +16,13 @@ const ERROR_TYPE_OPTIONS = [
 function ReadOnlyInput({ label, value, required = false }: { label: string; value: any; required?: boolean }) {
   return (
     <div className="flex flex-col">
-      <label className="text-sm font-medium text-gray-300 mb-1">
+      <label className="text-sm font-semibold text-gray-600 mb-1">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
         type="text"
         readOnly
-        className="w-full border border-gray-700 rounded px-3 py-2 bg-gray-900 text-gray-300 cursor-not-allowed focus:outline-none"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-800 cursor-not-allowed focus:outline-none"
         value={value ?? ""}
       />
     </div>
@@ -31,7 +31,7 @@ function ReadOnlyInput({ label, value, required = false }: { label: string; valu
 
 function SectionHeading({ title }: { title: string }) {
   return (
-    <h3 className="text-lg font-semibold text-white border-b border-gray-700 pb-2 mb-4 mt-8">
+    <h3 className="text-lg font-bold text-gray-900 border-b border-gray-200 pb-2 mb-4 mt-8">
       {title}
     </h3>
   );
@@ -161,16 +161,16 @@ function QCEditDetailsContent() {
   ];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto bg-black min-h-screen text-gray-200">
-      <div className="mb-6 flex justify-between items-center border-b border-gray-800 pb-4">
+    <div className="p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen text-gray-800">
+      <div className="mb-6 flex justify-between items-center border-b border-gray-200 pb-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">{getPageHeading()}</h1>
-          <p className="text-gray-400 mt-1">Survey Code: {surveyUniqueCode}</p>
+          <h1 className="text-2xl font-bold text-gray-900">{getPageHeading()}</h1>
+          <p className="text-gray-500 mt-1 font-semibold">Survey Code: {surveyUniqueCode}</p>
         </div>
       </div>
 
-      <div className="bg-[#111] p-6 rounded-md shadow-lg border border-gray-800">
-        <h2 className="text-xl font-bold bg-gray-800 text-white p-3 rounded-t-md mb-6">
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+        <h2 className="text-xl font-bold bg-gray-50 text-gray-900 p-4 border border-gray-200 rounded-t-xl mb-6">
           Property Details Review
         </h2>
 
@@ -245,18 +245,18 @@ function QCEditDetailsContent() {
               type="checkbox" 
               checked={property.otherDetails?.waterSupplyWithin200Meters === 'YES'} 
               readOnly 
-              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-600 bg-gray-700 border-gray-600"
+              className="w-4 h-4 rounded text-blue-600 bg-gray-50 border-gray-300"
             />
-            <label className="text-sm font-medium text-gray-300">Water Supply within 200 Meter</label>
+            <label className="text-sm font-semibold text-gray-700">Water Supply within 200 Meter</label>
           </div>
           <div className="flex items-center space-x-3 mt-4">
             <input 
               type="checkbox" 
               checked={property.otherDetails?.sewerageLineWithin100Meters === 'YES'} 
               readOnly 
-              className="w-4 h-4 rounded text-blue-600 focus:ring-blue-600 bg-gray-700 border-gray-600"
+              className="w-4 h-4 rounded text-blue-600 bg-gray-50 border-gray-300"
             />
-            <label className="text-sm font-medium text-gray-300">Sewerage Line within 100 Meter</label>
+            <label className="text-sm font-semibold text-gray-700">Sewerage Line within 100 Meter</label>
           </div>
         </div>
 
@@ -267,37 +267,37 @@ function QCEditDetailsContent() {
           <ReadOnlyInput label="Builtup Area Of Ground Floor" value={property.otherDetails?.builtupAreaOfGroundFloor} />
         </div>
 
-        <div className="overflow-x-auto rounded border border-gray-700">
+        <div className="overflow-x-auto rounded-lg border border-gray-200 mt-6">
           <table className="w-full text-sm text-left min-w-max">
-            <thead className="bg-gray-800 text-gray-300 border-b border-gray-700">
+            <thead className="bg-gray-50 text-gray-600 border-b border-gray-200">
               <tr>
-                <th className="px-4 py-3 font-medium">Floor Number</th>
-                <th className="px-4 py-3 font-medium">Occupancy Status</th>
-                <th className="px-4 py-3 font-medium">Construction Nature</th>
-                <th className="px-4 py-3 font-medium">Covered Area</th>
-                <th className="px-4 py-3 font-medium">All Room/Veranda Area</th>
-                <th className="px-4 py-3 font-medium">All Balcony/Kitchen Area</th>
-                <th className="px-4 py-3 font-medium">All Garage Area</th>
-                <th className="px-4 py-3 font-medium">Carpet Area</th>
+                <th className="px-4 py-3 font-semibold">Floor Number</th>
+                <th className="px-4 py-3 font-semibold">Occupancy Status</th>
+                <th className="px-4 py-3 font-semibold">Construction Nature</th>
+                <th className="px-4 py-3 font-semibold">Covered Area</th>
+                <th className="px-4 py-3 font-semibold">All Room/Veranda Area</th>
+                <th className="px-4 py-3 font-semibold">All Balcony/Kitchen Area</th>
+                <th className="px-4 py-3 font-semibold">All Garage Area</th>
+                <th className="px-4 py-3 font-semibold">Carpet Area</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {floors.length > 0 ? (
                 floors.map((floor: any, idx: number) => (
-                  <tr key={idx} className="border-b border-gray-800 bg-gray-900 border-l border-r">
-                    <td className="px-4 py-3">{floor.floorMaster?.floorNumberName || floor.floorNumberId || "NA"}</td>
+                  <tr key={idx} className="bg-white hover:bg-gray-50 transition-colors border-l border-r border-gray-100">
+                    <td className="px-4 py-3 font-medium text-gray-900">{floor.floorMaster?.floorNumberName || floor.floorNumberId || "NA"}</td>
                     <td className="px-4 py-3">{floor.occupancyStatus?.occupancyStatusName || floor.occupancyStatusId || "NA"}</td>
                     <td className="px-4 py-3">{floor.constructionNature?.constructionNatureName || floor.constructionNatureId || "NA"}</td>
-                    <td className="px-4 py-3">{floor.coveredArea || floor.builtupArea || "0.00"}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{floor.coveredArea || floor.builtupArea || "0.00"}</td>
                     <td className="px-4 py-3">{floor.allRoomVerandaArea ?? "0.00"}</td>
                     <td className="px-4 py-3">{floor.allBalconyKitchenArea ?? "0.00"}</td>
                     <td className="px-4 py-3">{floor.allGarageArea ?? "0.00"}</td>
-                    <td className="px-4 py-3">{floor.carpetArea ?? "0.00"}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{floor.carpetArea ?? "0.00"}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="px-4 py-4 text-center text-gray-500 bg-gray-900 border-x border-gray-800 border-b gap-x-4">
+                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500 bg-white font-medium uppercase tracking-wider text-xs">
                     No floor details available
                   </td>
                 </tr>
@@ -307,19 +307,19 @@ function QCEditDetailsContent() {
         </div>
 
         {/* Bottom Section: Attachments & Form */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-10 border-t border-gray-800 pt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-10 border-t border-gray-200 pt-8">
           {/* Upload Document / Photo */}
           <div>
-            <h3 className="text-lg font-semibold text-white mb-4">Upload Property Document/Photo</h3>
-            <div className="border border-gray-700 bg-gray-900 p-4 rounded min-h-[200px]">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Upload Property Document/Photo</h3>
+            <div className="border border-gray-200 bg-gray-50 p-4 rounded-xl min-h-[200px]">
               <table className="w-full text-sm text-left">
-                <thead className="text-gray-400 border-b border-gray-700">
+                <thead className="text-gray-600 border-b border-gray-200">
                   <tr>
-                    <th className="pb-2 font-medium">Attachment Name</th>
-                    <th className="pb-2 font-medium">Upload Attachment</th>
+                    <th className="pb-2 font-semibold">Attachment Name</th>
+                    <th className="pb-2 font-semibold">Upload Attachment</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   {property.propertyAttachments && property.propertyAttachments.length > 0 ? (
                     property.propertyAttachments.map((attachment: any, i: number) => {
                       const images = [];
@@ -329,10 +329,10 @@ function QCEditDetailsContent() {
                       }
                       
                       return images.map((imgUrl, imgIdx) => (
-                        <tr key={`${i}-${imgIdx}`} className="border-b border-gray-800">
-                          <td className="py-3">Photo {imgIdx + 1}</td>
+                        <tr key={`${i}-${imgIdx}`}>
+                          <td className="py-3 font-medium text-gray-900">Photo {imgIdx + 1}</td>
                           <td className="py-3">
-                            <a href={imgUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">
+                            <a href={imgUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700 hover:underline font-semibold">
                               View Attachment
                             </a>
                           </td>
@@ -341,26 +341,26 @@ function QCEditDetailsContent() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={2} className="py-4 text-gray-500 text-center">
+                      <td colSpan={2} className="py-8 text-gray-500 text-center font-semibold">
                         No attachments found
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
-              <div className="mt-4 pt-4 border-t border-gray-800 flex items-center justify-between text-gray-500 text-sm">
-                <span className="italic">Read-only view</span>
+              <div className="mt-4 pt-4 border-t border-gray-200 flex items-center justify-between text-gray-500 text-sm">
+                <span className="font-medium">Read-only view</span>
               </div>
             </div>
             
-            <div className="mt-6 border border-gray-700 bg-gray-900 p-4 rounded">
-              <h4 className="text-sm font-semibold text-gray-300 mb-4">Transfer Property</h4>
+            <div className="mt-6 border border-gray-200 bg-gray-50 p-4 rounded-xl">
+              <h4 className="text-sm font-bold text-gray-900 mb-4">Transfer Property</h4>
               <div className="flex items-center space-x-4">
-                <label className="text-sm text-gray-400">Transfer To:</label>
-                <select disabled className="border border-gray-700 rounded px-3 py-1.5 bg-gray-800 text-gray-500 w-48 cursor-not-allowed">
+                <label className="text-sm font-semibold text-gray-700">Transfer To:</label>
+                <select disabled className="border border-gray-200 rounded-lg px-3 py-1.5 bg-gray-100 text-gray-500 w-48 cursor-not-allowed">
                   <option>-Select-</option>
                 </select>
-                <button disabled className="px-4 py-1.5 bg-gray-700 text-gray-500 rounded cursor-not-allowed">
+                <button disabled className="px-4 py-1.5 bg-gray-200 text-gray-400 font-bold rounded-lg cursor-not-allowed">
                   Transfer
                 </button>
               </div>
@@ -369,12 +369,12 @@ function QCEditDetailsContent() {
 
           {/* Remarks & Action (QC Review Form) */}
           <div>
-             <h3 className="text-lg font-semibold text-white mb-4">QC Review Form</h3>
+             <h3 className="text-lg font-bold text-gray-900 mb-4">QC Review Form</h3>
              <div className="space-y-4">
                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Error Type</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Error Type</label>
                   <select
-                    className="w-full border border-gray-700 rounded px-3 py-2 bg-gray-800 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     value={errorType}
                     onChange={(e) => setErrorType(e.target.value)}
                   >
@@ -387,10 +387,10 @@ function QCEditDetailsContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Plot Area GIS</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Plot Area GIS</label>
                   <input
                     type="text"
-                    className="w-full border border-gray-700 rounded px-3 py-2 bg-gray-800 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     value={plotAreaGIS}
                     onChange={(e) => setPlotAreaGIS(e.target.value)}
                     placeholder="Enter GIS plot area"
@@ -398,9 +398,9 @@ function QCEditDetailsContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">GIS Team Remark</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">GIS Team Remark</label>
                   <textarea
-                    className="w-full border border-gray-700 rounded px-3 py-2 bg-gray-800 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     rows={2}
                     value={gisTeamRemark}
                     onChange={(e) => setGisTeamRemark(e.target.value)}
@@ -409,9 +409,9 @@ function QCEditDetailsContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Survey Team Remark</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Survey Team Remark</label>
                   <textarea
-                    className="w-full border border-gray-700 rounded px-3 py-2 bg-gray-800 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     rows={2}
                     value={surveyTeamRemark}
                     onChange={(e) => setSurveyTeamRemark(e.target.value)}
@@ -420,9 +420,9 @@ function QCEditDetailsContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">RI Remark</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">RI Remark</label>
                   <textarea
-                    className="w-full border border-gray-700 rounded px-3 py-2 bg-gray-800 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     rows={2}
                     value={riRemark}
                     onChange={(e) => setRiRemark(e.target.value)}
@@ -431,9 +431,9 @@ function QCEditDetailsContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">Assessment Remark</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Assessment Remark</label>
                   <textarea
-                    className="w-full border border-gray-700 rounded px-3 py-2 bg-gray-800 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     rows={2}
                     value={assessmentRemark}
                     onChange={(e) => setAssessmentRemark(e.target.value)}
@@ -442,9 +442,9 @@ function QCEditDetailsContent() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1">General Remarks</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">General Remarks</label>
                   <textarea
-                    className="w-full border border-gray-700 rounded px-3 py-2 bg-gray-800 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
                     rows={3}
                     value={generalRemarks}
                     onChange={(e) => setGeneralRemarks(e.target.value)}
@@ -456,20 +456,20 @@ function QCEditDetailsContent() {
              {/* Action Buttons */}
              <div className="mt-8 flex justify-end gap-4">
                 <button
-                  className="px-6 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 font-medium transition-colors"
+                  className="px-6 py-2.5 bg-white text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 font-bold transition-colors shadow-sm"
                   onClick={() => window.close()}
                 >
                   Cancel
                 </button>
                 <button
-                  className="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium transition-colors border border-red-700 disabled:opacity-50"
+                  className="px-6 py-2.5 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 font-bold transition-colors border border-red-200 disabled:opacity-50"
                   onClick={() => handleQCAction("REJECTED")}
                   disabled={loading}
                 >
                   Reject
                 </button>
                 <button
-                  className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium transition-colors border border-green-700 disabled:opacity-50"
+                  className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-bold transition-colors shadow-sm disabled:opacity-50"
                   onClick={() => handleQCAction("APPROVED")}
                   disabled={loading}
                 >
@@ -481,31 +481,31 @@ function QCEditDetailsContent() {
 
         {/* History portion, typically small and informative at the very bottom */}
         {property.qcRecords && property.qcRecords.length > 0 && (
-          <div className="mt-8 border-t border-gray-800 pt-6">
-            <h3 className="text-lg font-semibold text-white mb-4">QC History</h3>
-            <div className="overflow-x-auto border border-gray-700 rounded bg-gray-900">
+          <div className="mt-8 border-t border-gray-200 pt-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">QC History</h3>
+            <div className="overflow-x-auto border border-gray-200 rounded-lg bg-gray-50">
               <table className="w-full text-sm text-left">
-                <thead className="bg-gray-800 text-gray-300 border-b border-gray-700">
+                <thead className="bg-gray-100 text-gray-600 border-b border-gray-200">
                   <tr>
-                    <th className="px-4 py-2 font-medium">Level</th>
-                    <th className="px-4 py-2 font-medium">Status</th>
-                    <th className="px-4 py-2 font-medium">Reviewed By</th>
-                    <th className="px-4 py-2 font-medium">Date</th>
-                    <th className="px-4 py-2 font-medium">Remarks</th>
+                    <th className="px-4 py-3 font-semibold">Level</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Reviewed By</th>
+                    <th className="px-4 py-3 font-semibold">Date</th>
+                    <th className="px-4 py-3 font-semibold">Remarks</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   {property.qcRecords.map((qc: any, index: number) => (
-                    <tr key={index} className="border-b border-gray-800 last:border-0">
-                      <td className="px-4 py-2">{qc.qcLevel}</td>
-                      <td className="px-4 py-2">{qc.qcStatus}</td>
-                      <td className="px-4 py-2">
+                    <tr key={index} className="bg-white">
+                      <td className="px-4 py-3 font-medium text-gray-900">{qc.qcLevel}</td>
+                      <td className="px-4 py-3 font-bold text-gray-700">{qc.qcStatus}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">
                         {qc.reviewedBy?.name || qc.reviewedBy?.username || "NA"}
                       </td>
-                      <td className="px-4 py-2">
+                      <td className="px-4 py-3 text-gray-500">
                         {new Date(qc.reviewedAt).toLocaleDateString()}
                       </td>
-                      <td className="px-4 py-2">{qc.remarks || "NA"}</td>
+                      <td className="px-4 py-3 text-gray-600">{qc.remarks || "NA"}</td>
                     </tr>
                   ))}
                 </tbody>

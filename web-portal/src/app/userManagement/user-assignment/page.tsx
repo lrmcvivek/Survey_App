@@ -277,251 +277,250 @@ const UserAssignmentPage: React.FC = () => {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-[#0B0F19] p-4 md:p-8">
-        <div className="max-w-8xl mx-auto space-y-8">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/50 pb-8">
-            <div>
-              <h1 className="text-3xl font-black text-white tracking-tight italic uppercase">User <span className="text-blue-500">Assignment</span></h1>
-              <p className="text-slate-500 text-sm font-medium mt-1">Provision survey resources and spatial jurisdictions</p>
-            </div>
-          </div>
-
-          <div className="bg-[#161B26] border border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden relative">
-            <div className="p-8 border-b border-slate-800/50 bg-slate-800/10 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-black text-white tracking-tight uppercase italic">Configuration Matrix</h3>
-                <p className="text-sm text-slate-500 font-black uppercase tracking-widest mt-0.5 italic">Define target parameters</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-black text-slate-600 uppercase tracking-widest italic">Cycle: {lastRefreshed.toLocaleTimeString()}</span>
-                <button type="button" onClick={handleRefresh} className="p-2 text-slate-400 hover:text-blue-400 bg-slate-800/50 rounded-xl border border-slate-700/50 transition-all active:scale-95">
-                  <Loader2 className={`w-4 h-4 ${wardsLoading ? "animate-spin" : ""}`} />
-                </button>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="p-10 space-y-10">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                <div className="space-y-3">
-                  <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1 italic">Identity Type</label>
-                  <Select value={userType} onValueChange={setUserType} required>
-                    <SelectTrigger className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl h-14 px-6 text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all">
-                      <SelectValue placeholder="CHOOSE" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#161B26] border-slate-800 text-slate-300">
-                      {USER_TYPES.map((type) => (
-                        <SelectItem key={type.value} value={type.value} className="focus:bg-blue-600/20 focus:text-blue-400 transition-colors">{type.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1 italic">Target Personnel</label>
-                  <Select value={selectedUser} onValueChange={setSelectedUser} required disabled={!userType}>
-                    <SelectTrigger className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl h-14 px-6 text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-30">
-                      <SelectValue placeholder="SELECT USER" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#161B26] border-slate-800 text-slate-300">
-                      {users.length === 0 ? <SelectItem value="none" disabled>No records found</SelectItem> : users.map((u: any) => (
-                        <SelectItem key={u.userId} value={u.userId} className="focus:bg-blue-600/20 focus:text-blue-400 transition-colors">{u.name || u.username}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1 italic">Corporate Body (ULB)</label>
-                  <Select value={selectedUlb} onValueChange={setSelectedUlb} required>
-                    <SelectTrigger className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl h-14 px-6 text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all">
-                      <SelectValue placeholder="SELECT ULB" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#161B26] border-slate-800 text-slate-300">
-                      {ulbs.map((ulb: any) => (
-                        <SelectItem key={ulb.ulbId} value={ulb.ulbId} className="focus:bg-blue-600/20 focus:text-blue-400 transition-colors">{ulb.ulbName}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-3">
-                  <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1 italic">Regional Zone</label>
-                  <Select value={selectedZone} onValueChange={setSelectedZone} required disabled={!selectedUlb}>
-                    <SelectTrigger className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl h-14 px-6 text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-30">
-                      <SelectValue placeholder="SELECT ZONE" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#161B26] border-slate-800 text-slate-300">
-                      {zones.map((zone: any) => (
-                        <SelectItem key={zone.zoneId} value={zone.zoneId} className="focus:bg-blue-600/20 focus:text-blue-400 transition-colors">Zone: {zone.zoneNumber}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <div className="px-1 flex items-center justify-between">
-                    <label className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] italic">Wards Inventory</label>
-                  </div>
-                  <div className="bg-black/20 border border-slate-800/50 rounded-3xl overflow-hidden min-h-[400px]">
-                    <div className="overflow-x-auto h-[400px]">
-                      <table className="w-full text-left border-collapse sticky-header transition-all">
-                        <thead className="bg-[#161B26] sticky top-0 z-10">
-                          <tr className="border-b border-slate-800 text-[15px] font-black text-slate-500 uppercase tracking-widest">
-                            <th className="px-6 py-4 w-12 text-center">Opt</th>
-                            <th className="px-6 py-4">Ward Entity</th>
-                            <th className="px-6 py-4 text-center">Mohallas</th>
-                            <th className="px-6 py-4 w-24">Density</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/30">
-                          {wards.length === 0 ? (
-                            <tr><td colSpan={4} className="px-6 py-20 text-center text-slate-600 italic text-xs font-black uppercase tracking-widest opacity-20">Awaiting Regional Selection</td></tr>
-                          ) : (
-                            wards.map((ward: any) => {
-                              const isFullyAssigned = ward.unassignedMohallas === 0;
-                              return (
-                                <tr key={ward.wardId} className={`hover:bg-blue-500/[0.02] transition-colors group ${selectedWards.includes(ward.wardId) ? 'bg-blue-500/[0.05]' : ''}`}>
-                                  <td className="px-6 py-4 text-center">
-                                    <input type="checkbox" checked={selectedWards.includes(ward.wardId)} onChange={(e) => { const checked = e.target.checked; setSelectedWards((prev) => checked ? [...prev, ward.wardId] : prev.filter((id) => id !== ward.wardId)); }} className="w-4 h-4 bg-slate-800 border-slate-700 rounded transition-all checked:bg-blue-600" />
-                                  </td>
-                                  <td className="px-6 py-4">
-                                    <div className="flex flex-col">
-                                      <span className="text-slate-200 font-black text-sm uppercase tracking-tight">{ward.wardName}</span>
-                                      <span className="text-blue-500/60 font-mono text-[12px] font-bold">W#{ward.newWardNumber}</span>
-                                    </div>
-                                  </td>
-                                  <td className="px-6 py-4 text-center"><span className="text-sm font-black text-slate-400">{ward.unassignedMohallas}/{ward.totalMohallas}</span></td>
-                                  <td className="px-6 py-4">
-                                     {isFullyAssigned ? <span className="text-[12px] font-black text-emerald-500/60 bg-emerald-500/5 px-2 py-1 rounded-full border border-emerald-500/10 uppercase tracking-tighter">Saturated</span> : <span className="text-[12px] font-black text-blue-400 bg-blue-500/5 px-2 py-1 rounded-full border border-blue-500/10 uppercase tracking-tighter">Available</span>}
-                                  </td>
-                                </tr>
-                              );
-                            })
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="px-1 flex items-center justify-between">
-                    <label className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] italic">Mohallas Matrix</label>
-                  </div>
-                  <div className="bg-black/20 border border-slate-800/50 rounded-3xl overflow-hidden min-h-[400px]">
-                    <div className="overflow-x-auto h-[400px]">
-                      <table className="w-full text-left border-collapse transition-all">
-                        <thead className="bg-[#161B26] sticky top-0 z-10">
-                          <tr className="border-b border-slate-800 text-[15px] font-black text-slate-500 uppercase tracking-widest">
-                            <th className="px-6 py-4 w-12 text-center">Opt</th>
-                            <th className="px-6 py-4">Locality Name</th>
-                            <th className="px-6 py-4">Current Anchor</th>
-                            <th className="px-6 py-4">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/30">
-                          {selectedWards.length === 0 ? (
-                            <tr><td colSpan={4} className="px-6 py-20 text-center text-slate-600 italic text-xs font-black uppercase tracking-widest opacity-20">Zero Proxies detected</td></tr>
-                          ) : (
-                            selectedWards.map((wardId) => {
-                              const mIds = wardMohallaMap[wardId] || [];
-                              const wardData = wards.find((w: any) => w.wardId === wardId);
-                              return mIds.map((mohallaId) => {
-                                const assignedUser = mohallaAssignments[wardId]?.[mohallaId];
-                                const isAssigned = Boolean(assignedUser);
-                                const mohalla = mohallas.find((m: any) => m.mohallaId === mohallaId);
-                                return (
-                                  <tr key={mohallaId} className={`hover:bg-blue-500/[0.02] transition-colors group ${isAssigned ? 'opacity-40 italic' : ''} ${selectedMohallas.includes(mohallaId) ? 'bg-blue-500/[0.05]' : ''}`}>
-                                    <td className="px-6 py-4 text-center">
-                                      <input type="checkbox" checked={selectedMohallas.includes(mohallaId)} onChange={(e) => { const checked = e.target.checked; setSelectedMohallas((prev) => checked ? [...prev, mohallaId] : prev.filter((id) => id !== mohallaId)); }} disabled={isAssigned} className="w-4 h-4 bg-slate-800 border-slate-700 rounded transition-all disabled:cursor-not-allowed" />
-                                    </td>
-                                    <td className="px-6 py-4">
-                                      <div className="flex flex-col">
-                                        <span className="text-slate-200 font-black text-xs uppercase tracking-tight">{mohalla ? mohalla.mohallaName : mohallaId}</span>
-                                        <span className="text-slate-500 text-[12px] font-bold">Ref: {wardData?.wardName}</span>
-                                      </div>
-                                    </td>
-                                    <td className="px-6 py-4"><span className="text-sm font-bold text-slate-400">{assignedUser ? (assignedUser.name || assignedUser.username) : "SYSTEM_UNBOUND"}</span></td>
-                                    <td className="px-6 py-4">{isAssigned ? <span className="text-[12px] font-black text-red-400/60 uppercase tracking-widest">Locked</span> : <span className="text-[12px] font-black text-emerald-400 uppercase tracking-widest">Open</span>}</td>
-                                  </tr>
-                                );
-                              });
-                            }).flat()
-                          )}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-8">
-                <button type="submit" disabled={submitting} className="px-12 py-5 bg-blue-600 text-white font-black rounded-3xl shadow-2xl shadow-blue-600/20 hover:bg-blue-500 transition-all uppercase tracking-[0.2em] text-xs active:scale-95 disabled:opacity-50 flex items-center gap-3">
-                  {submitting && <Loader2 className="animate-spin w-4 h-4" />}
-                  {submitting ? "PROVISIONING..." : "COMMIT ASSIGNMENT"}
-                </button>
-              </div>
-            </form>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Survey Team Assignment</h1>
+            <p className="text-gray-500 text-sm mt-1">Assign surveyors and supervisors to specific wards and mohallas for field data collection.</p>
           </div>
         </div>
 
-        {showConfirmDialog && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
-            <div className="bg-[#161B26] border border-slate-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-               <div className="p-10 border-b border-slate-800 flex items-center justify-between bg-white/[0.01]">
-                 <div>
-                   <h3 className="text-2xl font-black text-white tracking-tight uppercase italic">Final Validation</h3>
-                   <p className="text-sm text-slate-500 font-black uppercase tracking-widest mt-1 italic">Review deployment parameters</p>
-                 </div>
-                 <button onClick={() => setShowConfirmDialog(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
-                   <XCircle className="w-8 h-8" />
-                 </button>
-               </div>
-               
-               <div className="p-10 space-y-8">
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="bg-slate-800/20 p-6 rounded-3xl border border-slate-700/30">
-                       <p className="text-lg font-black text-white capitalize">{users.find((u) => u.userId === pendingAssignment?.userId)?.name || "N/A"}</p>
-                       <p className="text-sm font-bold text-blue-500/60 uppercase tracking-tighter mt-1">{pendingAssignment?.assignmentType} REGISTRY</p>
-                    </div>
-                    <div className="bg-slate-800/20 p-6 rounded-3xl border border-slate-700/30">
-                       <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest italic mb-2"></p>
-                       <p className="text-lg font-black text-white">{ulbs.find((u: any) => u.ulbId === selectedUlb)?.ulbName || "N/A"}</p>
-                       <p className="text-sm font-bold text-slate-400/60 uppercase tracking-tighter mt-1">ZONE: {zones.find((z: any) => z.zoneId === selectedZone)?.zoneNumber || "N/A"}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-600/5 p-6 rounded-3xl border border-blue-500/10 max-h-40 overflow-y-auto">
-                      <p className="text-[15px] font-black text-blue-400 uppercase tracking-widest italic mb-3">Target Wards/Mohallas ({selectedMohallas.length} Localities)</p>
-                      <div className="flex flex-wrap gap-2">
-                         {selectedWards.map((wardId) => {
-                           const ward = wards.find((w: any) => w.wardId === wardId);
-                           const mohallaIds = (wardMohallaMap[wardId] || []).filter(mid => selectedMohallas.includes(mid));
-                           if (mohallaIds.length === 0) return null;
-                           return (
-                             <div key={wardId} className="flex flex-col gap-1 bg-slate-800/80 p-3 rounded-2xl border border-slate-700/50 min-w-[140px]">
-                               <span className="text-sm font-black text-slate-500 uppercase tracking-tighter">WARD: {ward?.wardName || wardId}</span>
-                               <span className="text-[15px] font-bold text-white italic">{mohallaIds.length} LOCALITIES</span>
-                             </div>
-                           );
-                         })}
-                      </div>
-                  </div>
-
-                  <p className="text-slate-500 text-xs font-medium italic text-center px-10">By confirming, you authorize the selected personnel to undertake jurisdictional operations within the specified spatial boundaries.</p>
-
-                  <div className="flex gap-4 pt-4">
-                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 px-8 py-5 bg-slate-800 text-slate-400 font-black rounded-3xl hover:bg-slate-700 transition-all uppercase tracking-widest text-[11px] active:scale-95">ABORT</button>
-                      <button onClick={confirmAssignment} disabled={submitting} className="flex-[2] px-8 py-5 bg-blue-600 text-white font-black rounded-3xl shadow-2xl shadow-blue-900/40 hover:bg-blue-500 transition-all uppercase tracking-widest text-[11px] active:scale-95 disabled:opacity-50">{submitting ? "SYNCING..." : "CONFIRM DEPLOYMENT"}</button>
-                  </div>
-               </div>
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight">Assignment Details</h3>
+              <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">Configure user and location details</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Last Refreshed: {lastRefreshed.toLocaleTimeString()}</span>
+              <button type="button" onClick={handleRefresh} className="p-1.5 text-gray-400 hover:text-blue-600 bg-white rounded-md border border-gray-200 shadow-sm transition-all active:scale-95">
+                <Loader2 className={`w-4 h-4 ${wardsLoading ? "animate-spin" : ""}`} />
+              </button>
             </div>
           </div>
-        )}
+
+          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">User Role</label>
+                <Select value={userType} onValueChange={setUserType} required>
+                  <SelectTrigger className="w-full bg-gray-50 border border-gray-200 rounded-lg h-11 px-4 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all">
+                    <SelectValue placeholder="Select Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {USER_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value} className="text-sm font-medium">{type.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Select User</label>
+                <Select value={selectedUser} onValueChange={setSelectedUser} required disabled={!userType}>
+                  <SelectTrigger className="w-full bg-gray-50 border border-gray-200 rounded-lg h-11 px-4 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all disabled:opacity-50">
+                    <SelectValue placeholder="Select Personnel" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {users.length === 0 ? <SelectItem value="none" disabled>No users found</SelectItem> : users.map((u: any) => (
+                      <SelectItem key={u.userId} value={u.userId} className="text-sm font-medium">{u.name || u.username}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Municipality (ULB)</label>
+                <Select value={selectedUlb} onValueChange={setSelectedUlb} required>
+                  <SelectTrigger className="w-full bg-gray-50 border border-gray-200 rounded-lg h-11 px-4 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all">
+                    <SelectValue placeholder="Select ULB" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ulbs.map((ulb: any) => (
+                      <SelectItem key={ulb.ulbId} value={ulb.ulbId} className="text-sm font-medium">{ulb.ulbName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider ml-1">Zone</label>
+                <Select value={selectedZone} onValueChange={setSelectedZone} required disabled={!selectedUlb}>
+                  <SelectTrigger className="w-full bg-gray-50 border border-gray-200 rounded-lg h-11 px-4 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all disabled:opacity-50">
+                    <SelectValue placeholder="Select Zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {zones.map((zone: any) => (
+                      <SelectItem key={zone.zoneId} value={zone.zoneId} className="text-sm font-medium">Zone {zone.zoneNumber}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pt-4">
+              <div className="space-y-3">
+                <div className="px-1 flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Available Wards</label>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto h-[400px]">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                        <tr className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          <th className="px-6 py-3.5 w-12 text-center">Select</th>
+                          <th className="px-6 py-3.5">Ward Name</th>
+                          <th className="px-6 py-3.5 text-center">Mohallas</th>
+                          <th className="px-6 py-3.5 w-24">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {wards.length === 0 ? (
+                          <tr><td colSpan={4} className="px-6 py-20 text-center text-gray-400 text-xs font-bold uppercase tracking-wider">No wards available for current selection</td></tr>
+                        ) : (
+                          wards.map((ward: any) => {
+                            const isFullyAssigned = ward.unassignedMohallas === 0;
+                            return (
+                              <tr key={ward.wardId} className={`hover:bg-blue-50/30 transition-colors ${selectedWards.includes(ward.wardId) ? 'bg-blue-50/50' : ''}`}>
+                                <td className="px-6 py-4 text-center">
+                                  <input type="checkbox" checked={selectedWards.includes(ward.wardId)} onChange={(e) => { const checked = e.target.checked; setSelectedWards((prev) => checked ? [...prev, ward.wardId] : prev.filter((id) => id !== ward.wardId)); }} className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-600/20" />
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="flex flex-col">
+                                    <span className="text-gray-900 font-bold text-sm tracking-tight">{ward.wardName}</span>
+                                    <span className="text-gray-400 text-[11px] font-semibold">Ward #{ward.newWardNumber}</span>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4 text-center"><span className="text-xs font-bold text-gray-600">{ward.unassignedMohallas} / {ward.totalMohallas} Unassigned</span></td>
+                                <td className="px-6 py-4">
+                                   {isFullyAssigned ? <span className="text-[10px] font-bold text-gray-400 bg-gray-50 px-2.5 py-1 rounded border border-gray-200 uppercase tracking-tighter">Assigned</span> : <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded border border-blue-100 uppercase tracking-tighter">Available</span>}
+                                </td>
+                              </tr>
+                            );
+                          })
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="px-1 flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Mohalla Assignment</label>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="overflow-x-auto h-[400px]">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-gray-50 sticky top-0 z-10 border-b border-gray-200">
+                        <tr className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                          <th className="px-6 py-3.5 w-12 text-center">Select</th>
+                          <th className="px-6 py-3.5">Mohalla Name</th>
+                          <th className="px-6 py-3.5">Assigned To</th>
+                          <th className="px-6 py-3.5">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {selectedWards.length === 0 ? (
+                          <tr><td colSpan={4} className="px-6 py-20 text-center text-gray-400 text-xs font-bold uppercase tracking-wider">No wards selected</td></tr>
+                        ) : (
+                          selectedWards.map((wardId) => {
+                            const mIds = wardMohallaMap[wardId] || [];
+                            const wardData = wards.find((w: any) => w.wardId === wardId);
+                            return mIds.map((mohallaId) => {
+                              const assignedUser = mohallaAssignments[wardId]?.[mohallaId];
+                              const isAssigned = Boolean(assignedUser);
+                              const mohalla = mohallas.find((m: any) => m.mohallaId === mohallaId);
+                              return (
+                                <tr key={mohallaId} className={`hover:bg-blue-50/30 transition-colors ${selectedMohallas.includes(mohallaId) ? 'bg-blue-50/50' : ''}`}>
+                                  <td className="px-6 py-4 text-center">
+                                    <input type="checkbox" checked={selectedMohallas.includes(mohallaId)} onChange={(e) => { const checked = e.target.checked; setSelectedMohallas((prev) => checked ? [...prev, mohallaId] : prev.filter((id) => id !== mohallaId)); }} disabled={isAssigned} className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-600/20 disabled:opacity-20" />
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-gray-900 font-bold text-xs tracking-tight">{mohalla ? mohalla.mohallaName : "Mohalla ID: " + mohallaId}</span>
+                                      <span className="text-gray-400 text-[10px] font-semibold">{wardData?.wardName}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4"><span className="text-xs font-semibold text-gray-500">{assignedUser ? (assignedUser.name || assignedUser.username) : "NOT ASSIGNED"}</span></td>
+                                  <td className="px-6 py-4">{isAssigned ? <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Assigned</span> : <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Available</span>}</td>
+                                </tr>
+                              );
+                            });
+                          }).flat()
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4">
+              <button type="submit" disabled={submitting} className="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all uppercase tracking-wider text-xs active:scale-95 disabled:opacity-50 flex items-center gap-2">
+                {submitting && <Loader2 className="animate-spin w-4 h-4" />}
+                {submitting ? "SAVING..." : "SAVE ASSIGNMENT"}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
+
+      {showConfirmDialog && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-xl rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in duration-200">
+             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+               <div>
+                 <h3 className="text-lg font-bold text-gray-900 tracking-tight">Confirm Assignment</h3>
+                 <p className="text-xs text-gray-500 font-bold uppercase tracking-wider mt-1">Please review the assignment details</p>
+               </div>
+               <button onClick={() => setShowConfirmDialog(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                 <XCircle className="w-5 h-5" />
+               </button>
+             </div>
+             
+             <div className="p-8 space-y-6">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                     <p className="text-sm font-bold text-gray-900">{users.find((u) => u.userId === pendingAssignment?.userId)?.name || "N/A"}</p>
+                     <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">{pendingAssignment?.assignmentType} Role</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                     <p className="text-sm font-bold text-gray-900">{ulbs.find((u: any) => u.ulbId === selectedUlb)?.ulbName || "N/A"}</p>
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Zone {zones.find((z: any) => z.zoneId === selectedZone)?.zoneNumber || "N/A"}</p>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50/30 p-4 rounded-lg border border-blue-100 max-h-40 overflow-y-auto">
+                    <p className="text-[11px] font-bold text-blue-800 uppercase tracking-wider mb-2">Assigned Wards/Mohallas ({selectedMohallas.length} Areas)</p>
+                    <div className="flex flex-wrap gap-2">
+                       {selectedWards.map((wardId) => {
+                         const ward = wards.find((w: any) => w.wardId === wardId);
+                         const mohallaIds = (wardMohallaMap[wardId] || []).filter(mid => selectedMohallas.includes(mid));
+                         if (mohallaIds.length === 0) return null;
+                         return (
+                           <div key={wardId} className="flex flex-col gap-0.5 bg-white p-2.5 rounded-md border border-gray-200 min-w-[120px]">
+                             <span className="text-[10px] font-bold text-gray-500 uppercase">WARD: {ward?.wardName || wardId}</span>
+                             <span className="text-xs font-bold text-gray-900">{mohallaIds.length} Mohallas</span>
+                           </div>
+                         );
+                       })}
+                    </div>
+                </div>
+
+                <p className="text-gray-500 text-[11px] font-medium text-center px-4">
+                  By confirming, the selected user will be assigned to the specified wards and mohallas for survey operations.
+                </p>
+
+                <div className="flex gap-4 pt-2">
+                    <button onClick={() => setShowConfirmDialog(false)} className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-600 font-bold rounded-lg hover:bg-gray-200 transition-all uppercase tracking-wider text-xs">CANCEL</button>
+                    <button onClick={confirmAssignment} disabled={submitting} className="flex-[1.5] px-4 py-2.5 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition-all uppercase tracking-wider text-xs disabled:opacity-50">{submitting ? "SAVING..." : "CONFIRM ASSIGNMENT"}</button>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 };

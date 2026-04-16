@@ -123,24 +123,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   return (
     <>
       <aside
-        className={`fixed inset-y-0 left-0 z-50 bg-[#0F172A] border-r border-slate-800 transform transition-all duration-300 ease-in-out ${
-          isOpen ? "w-[272px] translate-x-0" : "w-[72px] translate-x-0 lg:translate-x-0 lg:w-[72px] shadow-2xl"
+        className={`fixed inset-y-0 left-0 z-50 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out ${
+          isOpen ? "w-64 translate-x-0" : "w-20 translate-x-0 lg:translate-x-0 lg:w-20 shadow-sm"
         }`}
       >
         <div className="flex flex-col h-full overflow-hidden">
           {/* Header Area */}
-          <div className={`flex items-center ${isOpen ? "justify-between px-6" : "justify-center px-2"} h-16 bg-[#0F172A]/80 backdrop-blur-sm border-b border-slate-800 shrink-0`}>
+          <div className={`flex items-center ${isOpen ? "justify-between px-6" : "justify-center px-2"} h-16 border-b border-gray-100 shrink-0`}>
             {isOpen ? (
               <>
-                <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="flex items-center justify-center w-8 h-8 shrink-0 rounded-lg bg-blue-600 shadow-lg shadow-blue-500/20">
-                    <span className="text-white font-bold text-lg">L</span>
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="flex items-center justify-center w-8 h-8 shrink-0 rounded bg-blue-600 shadow-sm">
+                    <span className="text-white font-bold text-sm">PT</span>
                   </div>
-                  <h1 className="text-lg font-bold text-white tracking-tight truncate">LRMC PTMS</h1>
+                  <h1 className="text-base font-bold text-gray-900 tracking-tight truncate">PTMS Portal</h1>
                 </div>
                 <button
                   onClick={onToggle}
-                  className="p-1.5 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  className="p-1.5 rounded-md text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
@@ -150,7 +150,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             ) : (
               <button
                 onClick={onToggle}
-                className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-800/50 text-blue-500 hover:bg-blue-600 hover:text-white transition-all shadow-lg"
+                className="w-10 h-10 flex items-center justify-center rounded bg-gray-50 text-gray-500 hover:bg-gray-100 transition-all border border-gray-200"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
@@ -159,8 +159,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
             )}
           </div>
 
-          <div className="flex-1 px-2 py-6 overflow-y-auto custom-scrollbar overflow-x-hidden">
-            <div className="space-y-2">
+          <div className="flex-1 px-3 py-4 overflow-y-auto custom-scrollbar overflow-x-hidden">
+            <div className="space-y-1">
               {filteredNavigation.map((item) =>
                 item.children ? (
                   <SidebarSubMenu
@@ -175,14 +175,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`group flex items-center ${isOpen ? "px-4" : "justify-center"} py-2.5 text-lg font-medium rounded-xl transition-all duration-200 ${
+                    className={`group flex items-center ${isOpen ? "px-3" : "justify-center"} py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                       isActive(item.href)
-                        ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
-                        : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100"
+                        ? "bg-blue-50 text-blue-700"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                     title={!isOpen ? item.name : ""}
                   >
-                    <span className={`${isOpen ? "mr-3" : ""} transition-colors ${isActive(item.href) ? "text-white" : "text-slate-500 group-hover:text-slate-300"}`}>
+                    <span className={`${isOpen ? "mr-3" : ""} transition-colors ${isActive(item.href) ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}`}>
                       {item.icon}
                     </span>
                     {isOpen && <span className="truncate">{item.name}</span>}
@@ -193,28 +193,29 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           </div>
 
           {/* User Section at Bottom */}
-          <div className="p-2 mt-auto border-t border-slate-800 bg-[#0F172A]/50 shrink-0">
+          <div className="p-3 mt-auto border-t border-gray-100 bg-gray-50/50 shrink-0">
             {isOpen ? (
-              <div className="flex items-center p-2 rounded-xl bg-slate-800/40">
-                <div className="w-10 h-10 shrink-0 rounded-lg bg-blue-500 flex items-center justify-center text-white font-bold">
+              <div className="flex items-center p-2 rounded-md bg-white border border-gray-200 shadow-sm">
+                <div className="w-8 h-8 shrink-0 rounded bg-blue-600 flex items-center justify-center text-white text-xs font-bold">
                   {user?.name?.charAt(0) || user?.username?.charAt(0) || "U"}
                 </div>
                 <div className="ml-3 overflow-hidden">
-                  <p className="text-lg font-semibold text-white truncate">{user?.name || user?.username}</p>
-                  <p className="text-[10px] uppercase tracking-wider text-slate-500 truncate">{user?.role}</p>
+                  <p className="text-xs font-bold text-gray-900 truncate">{user?.name || user?.username}</p>
+                  <p className="text-[10px] uppercase font-semibold text-gray-400 truncate tracking-wide">{user?.role}</p>
                 </div>
                 <button
                   onClick={() => logout()}
-                  className="ml-auto p-1.5 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+                  className="ml-auto p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                  title="Logout"
                 >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                   </svg>
                 </button>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 py-2">
-                <div className="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400 text-xs font-bold border border-slate-700">
+                <div className="w-8 h-8 rounded bg-gray-200 flex items-center justify-center text-gray-500 text-xs font-bold border border-gray-300">
                   {user?.name?.charAt(0) || user?.username?.charAt(0) || "U"}
                 </div>
               </div>
@@ -254,8 +255,8 @@ function SidebarSubMenu({
 
   if (!isSidebarOpen) {
     return (
-      <div className="group relative flex justify-center py-2.5 text-slate-400 hover:text-slate-100 cursor-pointer rounded-xl hover:bg-slate-800/50" title={item.name}>
-        <span className={`${isActive ? "text-blue-500" : "text-slate-500 group-hover:text-slate-300"}`}>
+    <div className="group relative flex justify-center py-2 text-gray-500 hover:text-gray-900 cursor-pointer rounded-md hover:bg-gray-50" title={item.name}>
+        <span className={`${isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}`}>
           {item.icon}
         </span>
       </div>
@@ -263,21 +264,21 @@ function SidebarSubMenu({
   }
 
   return (
-    <div className="space-y-1 overscroll-y-contain">
+    <div className="space-y-1">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`group flex items-center w-full px-4 py-2.5 text-lg font-medium rounded-xl transition-all duration-200 ${
+        className={`group flex items-center w-full px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
           isActive
-            ? "bg-slate-800/80 text-white"
-            : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100"
+            ? "bg-gray-50 text-gray-900"
+            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
         }`}
       >
-        <span className={`mr-3 transition-colors ${isActive ? "text-blue-400" : "text-slate-500 group-hover:text-slate-300"}`}>
+        <span className={`mr-3 transition-colors ${isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}`}>
           {item.icon}
         </span>
         <span className="truncate">{item.name}</span>
         <svg
-          className={`ml-auto h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
+          className={`ml-auto h-3.5 w-3.5 transition-transform duration-200 ${isOpen ? "rotate-90" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -287,15 +288,15 @@ function SidebarSubMenu({
       </button>
       
       {isOpen && (
-        <div className="ml-9 space-y-1 border-l border-slate-800/60 pl-2 py-1">
+        <div className="ml-7 space-y-1 border-l border-gray-200 pl-2 mt-1">
           {item.children?.map((child) => (
             <Link
               key={child.name}
               href={child.href}
-              className={`flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              className={`flex items-center px-4 py-1.5 text-xs font-medium rounded transition-colors ${
                 pathname === child.href
-                  ? "text-blue-400 bg-blue-400/5"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/30"
+                  ? "text-blue-600 bg-blue-50/50"
+                  : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
               }`}
             >
               {child.name}

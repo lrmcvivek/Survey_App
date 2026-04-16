@@ -31,24 +31,24 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0B0F19]">
+    <div className="min-h-screen bg-[#eef0f3] font-sans text-slate-900">
       <Sidebar isOpen={sidebarOpen} onToggle={toggleSidebar} />
 
       <div
         className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out ${
-          sidebarOpen ? "lg:pl-[272px]" : "lg:pl-[72px] pl-0"
+          sidebarOpen ? "lg:pl-64" : "lg:pl-20 pl-0"
         }`}
       >
         <Header onMenuClick={toggleSidebar} user={user} />
 
-        <main className="flex-grow bg-[#0B0F19]">
-          <div className="max-w-8xl mx-auto overflow-hidden">
+        <main className="flex-grow">
+          <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
             {children}
           </div>
         </main>
 
-        <footer className="py-6 px-8 text-center bg-[#0B0F19] border-t border-slate-800/50 text-slate-600 text-[10px] font-black uppercase tracking-[0.2em] italic">
-          &copy; {new Date().getFullYear()} Property Tax Survey Management Portal // System Established
+        <footer className="py-8 px-8 text-center bg-white border-t border-gray-200 text-slate-500 text-xs font-medium tracking-normal">
+          &copy; {new Date().getFullYear()} Property Tax Survey Management System. All rights reserved.
         </footer>
       </div>
     </div>

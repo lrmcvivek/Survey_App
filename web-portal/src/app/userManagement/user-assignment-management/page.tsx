@@ -152,96 +152,97 @@ function UserAssignmentsTable({
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-[#0B0F19] p-4 md:p-8">
-        <div className="max-w-8xl mx-auto space-y-8">
+      <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/50 pb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
             <div>
-              <h1 className="text-3xl font-black text-white tracking-tight italic uppercase">Assignment <span className="text-blue-500">Registry</span></h1>
-              <p className="text-slate-500 text-sm font-medium mt-1">Manage operational bindings and personnel jurisdictions</p>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Assignment Management</h1>
+              <p className="text-gray-500 text-sm mt-1">Manage user assignments to wards and localities</p>
             </div>
           </div>
 
           {/* Table Container */}
-          <div className="bg-[#161B26] border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-            <div className="p-8 border-b border-slate-800/50 bg-slate-800/10 flex items-center justify-between">
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm relative">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50/50 flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-black text-white tracking-tight uppercase italic">Operational Matrix</h3>
-                <p className="text-[10px] text-slate-500 font-black uppercase tracking-widest mt-0.5 italic">Real-time assignment logs</p>
+                <h3 className="text-lg font-bold text-gray-900">User Assignments</h3>
+                <p className="text-xs text-gray-500 font-medium mt-0.5">List of all active and inactive assignments</p>
               </div>
-              <div className="bg-blue-600/5 border border-blue-500/10 px-4 py-2 rounded-xl">
-                 <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Active nodes: {data.assignments.filter((a: any) => a.isActive).length}</span>
+              <div className="bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-md">
+                 <span className="text-xs font-bold text-blue-700 uppercase tracking-wider">Active: {data.assignments.filter((a: any) => a.isActive).length}</span>
               </div>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-800/20 border-b border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
-                    <th className="px-8 py-6">Personnel Entity</th>
-                    <th className="px-8 py-6">Spatial Anchor (Ward)</th>
-                    <th className="px-8 py-6">Locality Cluster</th>
-                    <th className="px-8 py-6">Authority</th>
-                    <th className="px-8 py-6">Protocol</th>
-                    <th className="px-8 py-6 text-center">Operational Status</th>
-                    <th className="px-8 py-6 text-right">Actions</th>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 text-[11px] font-bold uppercase tracking-wider">
+                    <th className="px-6 py-4">User</th>
+                    <th className="px-6 py-4">Ward</th>
+                    <th className="px-6 py-4">Mohallas</th>
+                    <th className="px-6 py-4">Assigned By</th>
+                    <th className="px-6 py-4">Type</th>
+                    <th className="px-6 py-4 text-center">Status</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-800/50 text-slate-300">
+                <tbody className="divide-y divide-gray-100 text-gray-700">
                   {data.assignments.map((a: any) => (
-                    <tr key={a.assignmentId} className="hover:bg-blue-500/[0.02] transition-colors group">
-                      <td className="px-8 py-6">
+                    <tr key={a.assignmentId} className="hover:bg-gray-50/50 transition-colors group">
+                      <td className="px-6 py-4">
                         <div className="flex flex-col gap-0.5">
-                           <span className="text-white font-black text-sm uppercase tracking-tight">{a.user?.name || a.user?.username || "N/A"}</span>
-                           <span className="text-slate-500 text-[9px] font-black uppercase">ID: {a.user?.userId?.slice(-6)}</span>
+                           <span className="text-gray-900 font-bold text-sm">{a.user?.name || a.user?.username || "N/A"}</span>
+                           <span className="text-gray-500 text-[10px] font-bold uppercase">ID: {a.user?.userId?.slice(-6)}</span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-800/50 rounded-full border border-slate-700/50">
-                           <span className="text-[10px] font-black text-blue-400 uppercase italic">{a.ward?.wardName || "SYSTEM_UNBOUND"}</span>
+                      <td className="px-6 py-4">
+                        <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-gray-100 rounded-full border border-gray-200">
+                           <span className="text-xs font-semibold text-gray-700">{a.ward?.wardName || "Not Assigned"}</span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-6 py-4">
                         <div className="max-w-[200px] truncate group-hover:whitespace-normal group-hover:overflow-visible group-hover:max-w-none transition-all">
-                           <span className="text-[10px] font-bold text-slate-400 italic">
-                             {a.mohallas ? a.mohallas.map((m: any) => m.mohallaName).join(", ") : "UNMAPPED"}
+                           <span className="text-xs font-medium text-gray-600">
+                             {a.mohallas ? a.mohallas.map((m: any) => m.mohallaName).join(", ") : "All"}
                            </span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                         <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{a.assignedBy?.name || "ROOT"}</span>
+                      <td className="px-6 py-4">
+                         <span className="text-xs font-medium text-gray-600">{a.assignedBy?.name || "System"}</span>
                       </td>
-                      <td className="px-8 py-6">
-                        <span className={`px-3 py-1 text-[9px] font-black rounded-full border tracking-widest ${
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-0.5 text-[10px] font-bold rounded-full border tracking-wider uppercase ${
                           a.assignmentType === 'PRIMARY' 
-                            ? 'bg-blue-400/5 text-blue-400 border-blue-400/20' 
-                            : 'bg-indigo-400/5 text-indigo-400 border-indigo-400/20'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                            : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                         }`}>
-                          {a.assignmentType || 'SEC_OPS'}
+                          {a.assignmentType || 'SECONDARY'}
                         </span>
                       </td>
-                      <td className="px-8 py-6">
+                      <td className="px-6 py-4">
                         <div className="flex justify-center">
                           <button
-                            className={`flex items-center gap-2 px-4 py-1.5 rounded-full border transition-all active:scale-95 ${
+                            className={`flex items-center gap-2 px-3 py-1 rounded-full border transition-all active:scale-95 ${
                               a.isActive 
-                                ? "bg-emerald-400/5 border-emerald-400/20 text-emerald-400" 
-                                : "bg-slate-800/50 border-slate-700/50 text-slate-500"
+                                ? "bg-emerald-50 border-emerald-200 text-emerald-700 hover:bg-emerald-100" 
+                                : "bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100"
                             }`}
                             onClick={() => handleToggleClick(a.assignmentId, a.isActive)}
                             disabled={mutationUpdate.isPending}
                           >
-                            <div className={`w-1.5 h-1.5 rounded-full ${a.isActive ? "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-600"}`}></div>
-                            <span className="text-[9px] font-black uppercase tracking-[0.2em]">{a.isActive ? "Online" : "Offline"}</span>
+                            <div className={`w-1.5 h-1.5 rounded-full ${a.isActive ? "bg-emerald-500" : "bg-gray-400"}`}></div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider">{a.isActive ? "Active" : "Inactive"}</span>
                           </button>
                         </div>
                       </td>
-                      <td className="px-8 py-6 text-right">
+                      <td className="px-6 py-4 text-right">
                          <button
-                           className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-400/10 rounded-xl transition-all"
+                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                            onClick={() => handleDeleteClick(a.assignmentId)}
+                           title="Remove Assignment"
                          >
-                           <Trash2 size={16} />
+                           <Trash2 className="w-4 h-4" />
                          </button>
                       </td>
                     </tr>
@@ -254,38 +255,38 @@ function UserAssignmentsTable({
 
         {/* Confirmation Modal */}
         {showConfirmDialog && pendingAction && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
-            <div className="bg-[#161B26] border border-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 animate-in fade-in zoom-in duration-300 relative overflow-hidden text-center">
-               <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-8 ${pendingAction.type === 'delete' ? 'bg-red-500/10 text-red-500' : 'bg-blue-500/10 text-blue-500'}`}>
-                  {pendingAction.type === 'delete' ? <Trash2 className="w-10 h-10" /> : <ToggleRight className="w-10 h-10" />}
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+            <div className="bg-white border border-gray-200 w-full max-w-sm rounded-xl shadow-xl p-6 text-center animate-in fade-in zoom-in duration-200">
+               <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${pendingAction.type === 'delete' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+                  {pendingAction.type === 'delete' ? <Trash2 className="w-8 h-8" /> : <ToggleRight className="w-8 h-8" />}
                </div>
                
-               <div className="space-y-3 mb-10">
-                 <h3 className="text-2xl font-black text-white tracking-tight uppercase italic leading-none">
-                    {pendingAction.type === 'delete' ? 'Decommission node?' : 'Override Status?'}
+               <div className="space-y-2 mb-6">
+                 <h3 className="text-lg font-bold text-gray-900">
+                    {pendingAction.type === 'delete' ? 'Delete Assignment?' : 'Change Status?'}
                  </h3>
-                 <p className="text-slate-400 font-medium italic text-sm">
+                 <p className="text-gray-500 text-sm leading-relaxed">
                    {pendingAction.type === 'delete' 
-                     ? "This will permanently sever the operational link. The jurisdiction will return to unassigned status." 
-                     : `Commit status shift to ${pendingAction.isActive ? 'ONLINE' : 'OFFLINE'} protocol?`}
+                     ? "This will permanently remove the assignment for this user." 
+                     : `Are you sure you want to change the status to ${pendingAction.isActive ? 'Active' : 'Inactive'}?`}
                  </p>
                </div>
 
-               <div className="flex gap-4">
-                  <button
-                    onClick={() => { setShowConfirmDialog(false); setPendingAction(null); }}
-                    className="flex-1 px-6 py-4 bg-slate-800 text-slate-300 font-black rounded-[1.5rem] hover:bg-slate-700 transition-all uppercase tracking-widest text-[10px] active:scale-95"
-                  >
-                    ABORT
-                  </button>
+               <div className="flex flex-col gap-2 relative z-[105]">
                   <button
                     onClick={handleConfirmAction}
                     disabled={mutationUpdate.isPending || mutationDelete.isPending}
-                    className={`flex-1 px-6 py-4 font-black rounded-[1.5rem] shadow-xl transition-all uppercase tracking-widest text-[10px] active:scale-95 disabled:opacity-50 ${
-                       pendingAction.type === 'delete' ? 'bg-red-600 text-white shadow-red-900/20 hover:bg-red-500' : 'bg-blue-600 text-white shadow-blue-900/20 hover:bg-blue-500'
+                    className={`py-2 px-4 font-bold rounded-md transition-all text-sm disabled:opacity-50 ${
+                       pendingAction.type === 'delete' ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-blue-600 text-white hover:bg-blue-700'
                     }`}
                   >
-                    {mutationUpdate.isPending || mutationDelete.isPending ? "SYNCING..." : "CONFIRM"}
+                    {mutationUpdate.isPending || mutationDelete.isPending ? "Processing..." : "Confirm"}
+                  </button>
+                  <button
+                    onClick={() => { setShowConfirmDialog(false); setPendingAction(null); }}
+                    className="py-2 px-4 bg-white border border-gray-300 text-gray-700 font-bold rounded-md hover:bg-gray-50 transition-all text-sm"
+                  >
+                    Cancel
                   </button>
                </div>
             </div>

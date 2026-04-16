@@ -202,237 +202,248 @@ const SurveyManagementPage: React.FC = () => {
   return (
     <ProtectedRoute requireWebPortalAccess>
       <MainLayout>
-        <div className="min-h-screen bg-[#0B0F19] p-4 md:p-8">
-          <div className="max-w-[1600px] mx-auto space-y-8">
-            {/* Header Area */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/50 pb-8">
-               <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                     <div className="w-1.5 h-6 bg-blue-600 rounded-full"></div>
-                     <h1 className="text-3xl font-black text-white tracking-tight uppercase italic">Observation <span className="text-blue-500">Registry</span></h1>
-                  </div>
-                  <p className="text-slate-500 text-sm font-medium italic ml-5">Operational survey stream and structural data synchronization</p>
-               </div>
-               <div className="flex items-center gap-3">
-                  <button 
-                    onClick={handleBulkSync}
-                    disabled={bulkSyncing}
-                    className="flex items-center gap-2 px-6 py-3.5 bg-emerald-600/10 text-emerald-400 border border-emerald-600/20 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600/20 transition-all active:scale-95 disabled:opacity-50"
-                  >
-                    <RefreshCcw className={`w-3.5 h-3.5 ${bulkSyncing ? 'animate-spin' : ''}`} />
-                    Push Batch Sync
-                  </button>
-                  <button 
-                    onClick={() => window.location.href = "/surveys/add-new-id"}
-                    className="flex items-center gap-2 px-8 py-3.5 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-500 shadow-xl shadow-blue-900/20 transition-all active:scale-95"
-                  >
-                    <Plus className="w-4 h-4" />
-                    New Observation
-                  </button>
-               </div>
-            </div>
+        <div className="space-y-6">
+          {/* Header Area */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-6">
+             <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                   <FileText className="w-6 h-6 text-blue-600" />
+                   <h1 className="text-xl font-bold text-gray-900 tracking-tight">Household Survey Records</h1>
+                </div>
+                <p className="text-gray-500 text-sm">Monitor and manage submitted household property survey data across all wards.</p>
+             </div>
+             <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleBulkSync}
+                  disabled={bulkSyncing}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md text-sm font-semibold hover:bg-gray-50 transition-all shadow-sm disabled:opacity-50"
+                >
+                  <RefreshCcw className={`w-3.5 h-3.5 ${bulkSyncing ? 'animate-spin' : ''}`} />
+                  Bulk Sync Data
+                </button>
+                <button 
+                  onClick={() => window.location.href = "/surveys/add-new-id"}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-semibold hover:bg-blue-700 transition-all shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  New Survey Entry
+                </button>
+             </div>
+          </div>
 
-            {/* Stats Bento */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-               {[
-                 { label: "Total Observations", value: surveys.length, icon: FileText, color: "blue", sub: "Total captured" },
-                 { label: "Cloud Sync Ready", value: surveys.filter(s => s.isSynced).length, icon: CheckCircle2, color: "emerald", sub: "Integrity verified" },
-                 { label: "Pending Uplink", value: surveys.filter(s => !s.isSynced).length, icon: Clock, color: "amber", sub: "Awaiting push" },
-                 { label: "QC Integration", value: surveys.filter(s => getQCStatus(s) === "APPROVED").length, icon: Activity, color: "indigo", sub: "Approved nodes" }
-               ].map((stat, i) => (
-                 <div key={i} className="bg-[#161B26] border border-slate-800 p-6 rounded-[2.5rem] group hover:border-blue-500/30 transition-all">
-                    <div className="flex justify-between items-start mb-4">
-                       <div className={`w-10 h-10 bg-${stat.color}-500/10 rounded-xl flex items-center justify-center text-${stat.color}-400`}>
-                          <stat.icon className="w-5 h-5" />
-                       </div>
-                       <ArrowUpRight className="w-4 h-4 text-slate-700 group-hover:text-blue-400 transition-colors" />
-                    </div>
-                    <div>
-                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 italic leading-none">{stat.label}</h4>
-                       <div className="flex items-end gap-2">
-                          <p className="text-2xl font-black text-white leading-none tracking-tight">{stat.value}</p>
-                          <span className="text-[9px] font-bold text-slate-600 uppercase italic bottom-0.5 relative">{stat.sub}</span>
-                       </div>
-                    </div>
-                 </div>
-               ))}
-            </div>
-
-            {/* Matrix Controls */}
-            <div className="flex flex-col xl:flex-row gap-4">
-               <div className="relative flex-1 group">
-                  <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-blue-400 transition-colors" />
-                  <input 
-                    type="text"
-                    placeholder="QUERY REGISTRY (ID, GIS, UPLOADER, WARD)..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-[#161B26] border border-slate-800 rounded-2xl py-4 pl-14 pr-6 text-xs text-slate-300 focus:outline-none focus:ring-4 focus:ring-blue-500/5 transition-all font-black uppercase tracking-widest"
-                  />
-               </div>
-               <div className="flex flex-wrap gap-3">
-                  <div className="flex items-center gap-2 bg-[#161B26] border border-slate-800 rounded-2xl px-4 py-2">
-                     <Layers className="w-3.5 h-3.5 text-blue-500" />
-                     <select 
-                       value={selectedStatus}
-                       onChange={(e) => setSelectedStatus(e.target.value)}
-                       className="bg-transparent text-[10px] font-black text-slate-400 uppercase tracking-widest outline-none cursor-pointer"
-                     >
-                        <option value="">ALL QC STATES</option>
-                        <option value="PENDING">PENDING</option>
-                        <option value="APPROVED">APPROVED</option>
-                        <option value="REJECTED">REJECTED</option>
-                        <option value="DUPLICATE">DUPLICATE</option>
-                        <option value="NEEDS_REVISION">NEEDS REVISION</option>
-                     </select>
-                  </div>
-                  <div className="flex items-center gap-2 bg-[#161B26] border border-slate-800 rounded-2xl px-4 py-2">
-                     <Zap className="w-3.5 h-3.5 text-amber-500" />
-                     <select 
-                       value={selectedSyncStatus}
-                       onChange={(e) => setSelectedSyncStatus(e.target.value)}
-                       className="bg-transparent text-[10px] font-black text-slate-400 uppercase tracking-widest outline-none cursor-pointer"
-                     >
-                        <option value="">ALL SYNC STATES</option>
-                        <option value="PENDING">AWAITING</option>
-                        <option value="SYNCED">SYNCED</option>
-                        <option value="FAILED">FAILED</option>
-                        <option value="CONFLICT">CONFLICT</option>
-                     </select>
-                  </div>
-               </div>
-            </div>
-
-            {/* High Density Registry Table */}
-            <div className="bg-[#161B26] border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-               <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                     <thead>
-                        <tr className="bg-slate-800/20 border-b border-slate-800 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 italic">
-                           <th className="px-8 py-6">ID Node</th>
-                           <th className="px-8 py-6">GIS Identifier</th>
-                           <th className="px-8 py-6">Topography</th>
-                           <th className="px-8 py-6">Source User</th>
-                           <th className="px-8 py-6">Timestamp</th>
-                           <th className="px-8 py-6">Audit Status</th>
-                           <th className="px-8 py-6">Uplink</th>
-                           <th className="px-8 py-6 text-right">Actions</th>
-                        </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-800/40">
-                        {currentSurveys.length > 0 ? (
-                          currentSurveys.map((survey) => {
-                            const qcStatus = getQCStatus(survey);
-                            return (
-                              <tr key={survey.surveyUniqueCode} className="hover:bg-blue-500/[0.02] transition-colors group">
-                                 <td className="px-8 py-6">
-                                    <span className="text-blue-400 font-mono font-black text-[10px] px-2.5 py-1 bg-blue-400/5 rounded-lg border border-blue-400/10">{survey.surveyUniqueCode}</span>
-                                 </td>
-                                 <td className="px-8 py-6">
-                                    <div className="space-y-0.5">
-                                       <span className="text-slate-200 font-black text-xs uppercase tracking-tight leading-none block">{survey.gisId}</span>
-                                       {survey.subGisId && <span className="text-[9px] font-bold text-slate-600 uppercase italic">/ {survey.subGisId}</span>}
-                                    </div>
-                                 </td>
-                                 <td className="px-8 py-6">
-                                    <div className="flex items-center gap-3">
-                                       <div className="w-7 h-7 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
-                                          <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                                       </div>
-                                       <div className="space-y-0.5">
-                                          <span className="text-slate-300 font-black text-[10px] uppercase leading-none block">WARD {survey.ward.wardNumber}</span>
-                                          <span className="text-[9px] font-bold text-slate-600 uppercase italic truncate max-w-[120px] block">{survey.mohalla.mohallaName}</span>
-                                       </div>
-                                    </div>
-                                 </td>
-                                 <td className="px-8 py-6 text-slate-400">
-                                    <div className="flex items-center gap-2 text-xs font-black uppercase italic">
-                                       <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center">
-                                          <User className="w-3 h-3 text-slate-500" />
-                                       </div>
-                                       {survey.uploadedBy.name || survey.uploadedBy.username}
-                                    </div>
-                                 </td>
-                                 <td className="px-8 py-6 font-mono text-[10px] text-slate-500 font-bold italic">
-                                    {new Date(survey.entryDate).toLocaleDateString()}
-                                 </td>
-                                 <td className="px-8 py-6">
-                                    <span className={`inline-flex px-3 py-1 text-[9px] font-black uppercase italic rounded-full border ${getQCStatusColor(qcStatus)}`}>
-                                       {qcStatus}
-                                    </span>
-                                 </td>
-                                 <td className="px-8 py-6">
-                                    <span className={`inline-flex items-center gap-1.5 px-3 py-1 text-[9px] font-black uppercase italic rounded-full border ${getSyncStatusColor(survey.syncStatus)}`}>
-                                       <div className={`w-1 h-1 rounded-full ${survey.syncStatus === 'SYNCED' ? 'bg-emerald-400' : 'bg-current'}`}></div>
-                                       {survey.syncStatus}
-                                    </span>
-                                 </td>
-                                 <td className="px-8 py-6 text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                       {!survey.isSynced && (
-                                          <button 
-                                            onClick={() => handleSyncSurvey(survey.surveyUniqueCode)}
-                                            className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all active:scale-90"
-                                            title="Uplink Sync"
-                                          >
-                                             <RefreshCcw className="w-3.5 h-3.5" />
-                                          </button>
-                                       )}
-                                       <button 
-                                         className="p-2.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all active:scale-90"
-                                         title="View Node"
-                                       >
-                                          <Eye className="w-3.5 h-3.5" />
-                                       </button>
-                                       <button className="p-2.5 rounded-xl text-slate-600 hover:text-slate-400 transition-all active:scale-90">
-                                          <MoreVertical className="w-3.5 h-3.5" />
-                                       </button>
-                                    </div>
-                                 </td>
-                              </tr>
-                            )
-                          })
-                        ) : (
-                          <tr>
-                             <td colSpan={8} className="px-8 py-32 text-center opacity-30">
-                                <Database className="w-16 h-16 mx-auto mb-4 text-slate-700" />
-                                <h3 className="text-xl font-black uppercase italic">Registry Archive Clear</h3>
-                                <p className="text-xs font-medium italic mt-1">No operational nodes match the current filter buffer</p>
-                             </td>
-                          </tr>
-                        )}
-                     </tbody>
-                  </table>
-               </div>
-
-               {/* Density Controls - Pagination */}
-               {totalPages > 1 && (
-                  <div className="p-6 border-t border-slate-800 bg-slate-800/10 flex flex-col md:flex-row items-center justify-between gap-4">
-                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
-                        Visualizing Buffer <span className="text-blue-400">{indexOfFirstItem + 1}</span> to <span className="text-blue-400">{Math.min(indexOfLastItem, filteredSurveys.length)}</span> of <span className="text-blue-400">{filteredSurveys.length}</span> nodes
-                     </span>
-                     <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                          disabled={currentPage === 1}
-                          className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        >
-                           <ChevronLeft className="w-4 h-4" />
-                        </button>
-                        <div className="px-6 py-2.5 bg-slate-900 border border-slate-800 rounded-xl">
-                           <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest italic">Segment {currentPage} / {totalPages}</span>
-                        </div>
-                        <button 
-                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                          disabled={currentPage === totalPages}
-                          className="p-2.5 bg-slate-900 border border-slate-800 rounded-xl text-slate-500 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                        >
-                           <ChevronRight className="w-4 h-4" />
-                        </button>
+          {/* Stats Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+             {[
+               { label: "Total Surveys", value: surveys.length, icon: FileText, color: "blue", sub: "Grand total" },
+               { label: "Synced Records", value: surveys.filter(s => s.isSynced).length, icon: CheckCircle2, color: "emerald", sub: "Uploaded to cloud" },
+               { label: "Pending Sync", value: surveys.filter(s => !s.isSynced).length, icon: Clock, color: "amber", sub: "Local data only" },
+               { label: "Approved Surveys", value: surveys.filter(s => getQCStatus(s) === "APPROVED").length, icon: Activity, color: "indigo", sub: "Verified by QC" }
+             ].map((stat, i) => (
+               <div key={i} className="bg-white border border-gray-200 p-5 rounded-lg shadow-sm">
+                  <div className="flex justify-between items-start mb-3">
+                     <div className={`w-9 h-9 rounded-md flex items-center justify-center ${
+                        stat.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                        stat.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+                        stat.color === 'amber' ? 'bg-amber-50 text-amber-600' :
+                        'bg-indigo-50 text-indigo-600'
+                     }`}>
+                        <stat.icon className="w-5 h-5" />
                      </div>
                   </div>
-               )}
-            </div>
+                  <div>
+                     <h4 className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">{stat.label}</h4>
+                     <div className="flex items-baseline gap-2">
+                        <p className="text-xl font-bold text-gray-900">{stat.value}</p>
+                        <span className="text-[10px] font-medium text-gray-400 uppercase">{stat.sub}</span>
+                     </div>
+                  </div>
+               </div>
+             ))}
+          </div>
+
+          {/* Search & Filters */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm flex flex-col xl:flex-row gap-4">
+             <div className="relative flex-1 group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input 
+                  type="text"
+                  placeholder="Search by Survey ID, GIS ID, Surveyor, or Ward..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-white border border-gray-300 rounded-md py-2 pl-9 pr-4 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all"
+                />
+             </div>
+             <div className="flex flex-wrap gap-3">
+                <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-3 py-2">
+                   <Layers className="w-3.5 h-3.5 text-gray-400" />
+                   <select 
+                     value={selectedStatus}
+                     onChange={(e) => setSelectedStatus(e.target.value)}
+                     className="bg-transparent text-xs font-semibold text-gray-700 outline-none cursor-pointer"
+                   >
+                      <option value="">QC STATUS (ALL)</option>
+                      <option value="PENDING">PENDING</option>
+                      <option value="APPROVED">APPROVED</option>
+                      <option value="REJECTED">REJECTED</option>
+                      <option value="DUPLICATE">DUPLICATE</option>
+                      <option value="NEEDS_REVISION">NEEDS REVISION</option>
+                   </select>
+                </div>
+                <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-md px-3 py-2">
+                   <Zap className="w-3.5 h-3.5 text-gray-400" />
+                   <select 
+                     value={selectedSyncStatus}
+                     onChange={(e) => setSelectedSyncStatus(e.target.value)}
+                     className="bg-transparent text-xs font-semibold text-gray-700 outline-none cursor-pointer"
+                   >
+                      <option value="">SYNC STATUS (ALL)</option>
+                      <option value="PENDING">PENDING</option>
+                      <option value="SYNCED">SYNCED</option>
+                      <option value="FAILED">FAILED</option>
+                      <option value="CONFLICT">CONFLICT</option>
+                   </select>
+                </div>
+             </div>
+          </div>
+
+          {/* Records Table */}
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+             <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                   <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                         <th className="px-6 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Survey ID</th>
+                         <th className="px-6 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">GIS ID</th>
+                         <th className="px-6 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Location</th>
+                         <th className="px-6 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Surveyor</th>
+                         <th className="px-6 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Date</th>
+                         <th className="px-6 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">QC Status</th>
+                         <th className="px-6 py-3 text-[11px] font-bold text-gray-500 uppercase tracking-wider">Sync</th>
+                         <th className="px-6 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-gray-200">
+                      {currentSurveys.length > 0 ? (
+                        currentSurveys.map((survey) => {
+                          const qcStatus = getQCStatus(survey);
+                          return (
+                            <tr key={survey.surveyUniqueCode} className="hover:bg-gray-50/50 transition-colors">
+                               <td className="px-6 py-4">
+                                  <span className="text-blue-600 font-medium text-xs bg-blue-50 px-2.5 py-1 rounded border border-blue-100">{survey.surveyUniqueCode}</span>
+                               </td>
+                               <td className="px-6 py-4">
+                                  <div className="flex flex-col">
+                                     <span className="text-gray-900 font-semibold text-xs">{survey.gisId}</span>
+                                     {survey.subGisId && <span className="text-[10px] text-gray-400 font-medium">/ {survey.subGisId}</span>}
+                                  </div>
+                               </td>
+                               <td className="px-6 py-4">
+                                  <div className="flex items-center gap-2">
+                                     <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                                     <div className="flex flex-col">
+                                        <span className="text-gray-900 font-bold text-[10px] uppercase">WARD {survey.ward.wardNumber}</span>
+                                        <span className="text-[10px] text-gray-500 truncate max-w-[120px]">{survey.mohalla.mohallaName}</span>
+                                     </div>
+                                  </div>
+                               </td>
+                               <td className="px-6 py-4">
+                                  <div className="flex items-center gap-2 text-xs text-gray-600 font-medium">
+                                     <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                                        <User className="w-3 h-3 text-gray-400" />
+                                     </div>
+                                     <span className="truncate max-w-[100px]">{survey.uploadedBy.name || survey.uploadedBy.username}</span>
+                                  </div>
+                               </td>
+                               <td className="px-6 py-4 text-[11px] text-gray-500 font-medium">
+                                  {new Date(survey.entryDate).toLocaleDateString()}
+                               </td>
+                               <td className="px-6 py-4">
+                                  <span className={`inline-flex px-2.5 py-0.5 text-[10px] font-bold uppercase rounded-full border ${
+                                     qcStatus === 'APPROVED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                     qcStatus === 'REJECTED' ? 'bg-red-50 text-red-700 border-red-100' :
+                                     qcStatus === 'NEEDS_REVISION' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                     'bg-gray-50 text-gray-600 border-gray-100'
+                                  }`}>
+                                     {qcStatus}
+                                  </span>
+                               </td>
+                               <td className="px-6 py-4">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold uppercase rounded-full border ${
+                                     survey.syncStatus === 'SYNCED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                     survey.syncStatus === 'FAILED' ? 'bg-red-50 text-red-700 border-red-100' :
+                                     'bg-blue-50 text-blue-700 border-blue-100'
+                                  }`}>
+                                     <div className={`w-1 h-1 rounded-full ${survey.syncStatus === 'SYNCED' ? 'bg-emerald-500' : 'bg-current'}`}></div>
+                                     {survey.syncStatus}
+                                  </span>
+                               </td>
+                               <td className="px-6 py-4 text-right">
+                                  <div className="flex items-center justify-end gap-1.5">
+                                     {!survey.isSynced && (
+                                        <button 
+                                          onClick={() => handleSyncSurvey(survey.surveyUniqueCode)}
+                                          className="p-1.5 rounded border border-gray-200 bg-white text-gray-500 hover:text-emerald-600 hover:border-emerald-200 transition-all"
+                                          title="Sync Now"
+                                        >
+                                           <RefreshCcw className="w-3.5 h-3.5" />
+                                        </button>
+                                     )}
+                                     <button 
+                                       className="p-1.5 rounded border border-gray-200 bg-white text-gray-500 hover:text-blue-600 hover:border-blue-200 transition-all"
+                                       title="View Details"
+                                     >
+                                        <Eye className="w-3.5 h-3.5" />
+                                     </button>
+                                     <button className="p-1.5 text-gray-400 hover:text-gray-600">
+                                        <MoreVertical className="w-3.5 h-3.5" />
+                                     </button>
+                                  </div>
+                               </td>
+                            </tr>
+                          )
+                        })
+                      ) : (
+                        <tr>
+                           <td colSpan={8} className="px-6 py-20 text-center opacity-50">
+                              <div className="max-w-xs mx-auto space-y-2">
+                                 <Database className="w-10 h-10 mx-auto text-gray-300" />
+                                 <h3 className="text-sm font-bold text-gray-900 uppercase">No Survey Records Found</h3>
+                                 <p className="text-xs text-gray-500">We couldn't find any surveys matching your current filters.</p>
+                              </div>
+                           </td>
+                        </tr>
+                      )}
+                   </tbody>
+                </table>
+             </div>
+
+             {/* Pagination */}
+             {totalPages > 1 && (
+                <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex flex-col md:flex-row items-center justify-between gap-4">
+                   <span className="text-xs text-gray-500">
+                      Showing <span className="font-bold text-gray-900">{indexOfFirstItem + 1}</span> to <span className="font-bold text-gray-900">{Math.min(indexOfLastItem, filteredSurveys.length)}</span> of <span className="font-bold text-gray-900">{filteredSurveys.length}</span> surveys
+                   </span>
+                   <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 bg-white border border-gray-300 rounded text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                         <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div className="px-4 py-1.5 bg-white border border-gray-300 rounded">
+                         <span className="text-xs font-bold text-gray-700">Page {currentPage} of {totalPages}</span>
+                      </div>
+                      <button 
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="p-2 bg-white border border-gray-300 rounded text-gray-500 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                         <ChevronRight className="w-4 h-4" />
+                      </button>
+                   </div>
+                </div>
+             )}
           </div>
         </div>
       </MainLayout>

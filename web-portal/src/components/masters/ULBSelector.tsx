@@ -20,20 +20,18 @@ export default function ULBSelector({ value, onChange, isDark = false, hideLabel
     queryFn: masterDataApi.getAllUlbs,
   });
 
-  const baseStyles = "w-full text-sm font-bold rounded-2xl px-6 py-4 outline-none transition-all appearance-none cursor-pointer";
-  const darkStyles = "bg-slate-800/40 border border-slate-700/50 text-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50";
-  const lightStyles = "bg-slate-50 border border-slate-100 text-slate-700 focus:ring-4 focus:ring-blue-500/5 focus:border-blue-500/20";
+  const selectStyles = "w-full text-sm font-medium rounded-lg px-3 py-2.5 outline-none transition-all appearance-none cursor-pointer bg-white border border-gray-300 text-gray-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed";
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {!hideLabel && (
-        <label className={`block text-[10px] font-black uppercase tracking-[0.2em] ml-1 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>
+        <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 ml-0.5">
           Urban Local Body
         </label>
       )}
-      <div className="relative group">
+      <div className="relative">
         <select
-          className={`${baseStyles} ${isDark ? darkStyles : lightStyles}`}
+          className={selectStyles}
           value={value || ""}
           onChange={(e) => onChange(e.target.value || null)}
           disabled={isLoading || !!error}
@@ -42,19 +40,19 @@ export default function ULBSelector({ value, onChange, isDark = false, hideLabel
           {ulbs &&
             ulbs.length > 0 &&
             ulbs.map((ulb: any) => (
-              <option key={ulb.ulbId} value={ulb.ulbId} className="bg-slate-900 text-white">
+              <option key={ulb.ulbId} value={ulb.ulbId}>
                 {ulb.ulbName}
               </option>
             ))}
         </select>
-        <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 group-hover:opacity-100 transition-opacity">
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
            </svg>
         </div>
       </div>
-      {isLoading && <div className="text-[10px] font-bold text-slate-500 px-2 italic animate-pulse tracking-widest uppercase">Synchronizing...</div>}
-      {error && <div className="text-[10px] font-bold text-red-500 px-2 italic tracking-widest uppercase">Registry offline</div>}
+      {isLoading && <div className="text-xs text-gray-400 px-0.5 animate-pulse">Loading...</div>}
+      {error && <div className="text-xs text-red-500 px-0.5">Failed to load</div>}
     </div>
   );
 }

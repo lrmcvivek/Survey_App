@@ -31,100 +31,88 @@ export default function AssessmentYearMasterPage() {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-[#0B0F19] p-4 md:p-8">
-        <div className="max-w-[1400px] mx-auto space-y-10">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800/50 pb-8">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-400 font-black italic">
-                    <Calendar className="w-6 h-6" />
-                 </div>
-                 <h1 className="text-3xl font-black text-white tracking-tight uppercase italic">Assessment <span className="text-blue-500">Timeline</span></h1>
-              </div>
-              <p className="text-slate-500 text-sm font-medium italic">Manage fiscal assessment cycles and chronological audit anchors</p>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-gray-200 pb-6">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+               <Calendar className="w-6 h-6 text-blue-600" />
+               <h1 className="text-xl font-bold text-gray-900 tracking-tight">Assessment Year Management</h1>
             </div>
-            
-            <button className="flex items-center gap-2 px-6 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-900/30 hover:bg-blue-500 transition-all active:scale-95 uppercase tracking-widest text-[10px]">
-              <Plus className="w-4 h-4" />
-              Initialize Cycle
-            </button>
+            <p className="text-gray-500 text-sm">Manage and configure assessment years for property tax calculations and record keeping.</p>
           </div>
+          
+          <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-bold rounded shadow hover:bg-blue-700 transition-all active:scale-95 uppercase tracking-wider text-xs">
+            <Plus className="w-4 h-4" />
+            Add Assessment Year
+          </button>
+        </div>
 
-          {/* Timeline Bento */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <div className="bg-[#161B26] border border-slate-800 p-8 rounded-[2.5rem] flex items-center gap-6 group hover:border-blue-500/50 transition-all cursor-default relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-700">
-                   <Activity className="w-20 h-20 text-white" />
-                </div>
-                <div className="w-16 h-16 bg-blue-600/10 rounded-2xl flex items-center justify-center text-blue-400 shrink-0">
-                   <History className="w-8 h-8" />
-                </div>
-                <div>
-                   <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 italic">Active Cycle</h4>
-                   <p className="text-2xl font-black text-white italic">2024 - 2025</p>
-                </div>
-             </div>
-             
-             <div className="bg-[#161B26] border border-slate-800 p-8 rounded-[2.5rem] flex items-center gap-6 group hover:border-emerald-500/50 transition-all cursor-default relative overflow-hidden">
-                <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-400 shrink-0">
-                   <ShieldCheck className="w-8 h-8" />
-                </div>
-                <div>
-                   <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 italic">Audit Locks</h4>
-                   <p className="text-2xl font-black text-white italic">03 ARCHIVED</p>
-                </div>
-             </div>
+        {/* Assessment Year Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+           <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm flex items-center gap-6">
+              <div className="w-14 h-14 bg-blue-50 rounded-lg flex items-center justify-center text-blue-600 shrink-0">
+                 <History className="w-7 h-7" />
+              </div>
+              <div>
+                 <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">Active Year</h4>
+                 <p className="text-xl font-bold text-gray-900">2024 - 2025</p>
+              </div>
+           </div>
+           
+           <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm flex items-center gap-6">
+              <div className="w-14 h-14 bg-emerald-50 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
+                 <ShieldCheck className="w-7 h-7" />
+              </div>
+              <div>
+                 <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">Archived Records</h4>
+                 <p className="text-xl font-bold text-gray-900">03 YEARS</p>
+              </div>
+           </div>
 
-             <div className="bg-[#161B26] border border-slate-800 p-8 rounded-[2.5rem] flex items-center gap-6 group hover:border-amber-500/50 transition-all cursor-default relative overflow-hidden">
-                <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 shrink-0">
-                   <RotateCcw className="w-8 h-8" />
-                </div>
-                <div>
-                   <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none mb-1 italic">Synchronization</h4>
-                   <p className="text-2xl font-black text-white italic">REAL-TIME</p>
-                </div>
-             </div>
-          </div>
+           <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm flex items-center gap-6">
+              <div className="w-14 h-14 bg-amber-50 rounded-lg flex items-center justify-center text-amber-600 shrink-0">
+                 <RotateCcw className="w-7 h-7" />
+              </div>
+              <div>
+                 <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-wider leading-none mb-1">Synchronization</h4>
+                 <p className="text-xl font-bold text-gray-900 text-amber-600">ACTIVE</p>
+              </div>
+           </div>
+        </div>
 
-          {/* Timeline Registry */}
-          <div className="bg-[#161B26] border border-slate-800 rounded-[3rem] shadow-2xl overflow-hidden relative min-h-[500px] flex flex-col">
-             <div className="p-10 border-b border-slate-800/50 flex items-center justify-between relative z-10 bg-slate-800/20">
-                <div className="flex items-center gap-4">
-                   <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-blue-400 border border-slate-800">
-                      <Database className="w-5 h-5" />
-                   </div>
-                   <h3 className="text-lg font-black text-white italic uppercase tracking-tight">Chronological Inventory</h3>
-                </div>
-                <div className="relative group">
-                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-700 group-focus-within:text-blue-400 transition-colors" />
-                   <input 
-                     placeholder="Filter Epochs..." 
-                     className="bg-slate-900 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-[10px] font-black text-slate-400 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono uppercase tracking-widest w-48"
-                   />
-                </div>
-             </div>
+        {/* Assessment Year List Container */}
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden min-h-[400px] flex flex-col">
+           <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+              <div className="flex items-center gap-3">
+                 <Database className="w-5 h-5 text-gray-400" />
+                 <h3 className="text-sm font-bold text-gray-900 uppercase tracking-tight">Assessment Year History</h3>
+              </div>
+              <div className="relative">
+                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                 <input 
+                   placeholder="Search Years..." 
+                   className="bg-white border border-gray-300 rounded-md pl-9 pr-4 py-1.5 text-xs text-gray-700 outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 transition-all w-48"
+                 />
+              </div>
+           </div>
 
-             <div className="flex-1 flex flex-col items-center justify-center p-20 space-y-8 text-center relative z-10">
-                <div className="relative">
-                   <div className="absolute inset-0 bg-blue-500/5 blur-[80px] rounded-full animate-pulse"></div>
-                   <div className="w-24 h-24 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center mx-auto text-slate-700 shadow-inner">
-                      <Zap className="w-12 h-12" />
-                   </div>
-                </div>
-                <div className="space-y-3">
-                   <h3 className="text-3xl font-black text-white uppercase italic tracking-tighter">Timeline Static</h3>
-                   <p className="text-slate-500 max-w-sm mx-auto font-medium italic leading-relaxed">
-                      No assessment iterations have been initialized. Commencing a new cycle will activate calculation engines for the selected period.
-                   </p>
-                </div>
-                <button className="flex items-center gap-3 px-12 py-5 bg-blue-600 text-white rounded-[2rem] font-black uppercase tracking-widest text-[10px] hover:bg-blue-500 shadow-2xl shadow-blue-900/40 transition-all active:scale-95 group">
-                   <Sparkles className="w-4 h-4" />
-                   Provision Cycle iteration
-                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </button>
-             </div>
-          </div>
+           <div className="flex-1 flex flex-col items-center justify-center p-12 space-y-6 text-center">
+              <div className="w-16 h-16 bg-gray-50 border border-gray-100 rounded-full flex items-center justify-center text-gray-200">
+                 <Zap className="w-8 h-8" />
+              </div>
+              <div className="space-y-2">
+                 <h3 className="text-lg font-bold text-gray-900 uppercase">No Assessment Years Found</h3>
+                 <p className="text-gray-500 max-w-sm mx-auto text-sm leading-relaxed">
+                    No assessment year records have been found in the system. Please add a new assessment year to begin tax calculation operations.
+                 </p>
+              </div>
+              <button className="flex items-center gap-2 px-8 py-3 bg-blue-600 text-white rounded font-bold uppercase tracking-wider text-xs hover:bg-blue-700 shadow-md transition-all active:scale-95 group">
+                 <Plus className="w-4 h-4" />
+                 Add Assessment Year
+                 <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
+           </div>
         </div>
       </div>
     </MainLayout>
