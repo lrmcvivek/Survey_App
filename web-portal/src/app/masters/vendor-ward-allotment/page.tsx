@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import MainLayout from "@/components/layout/MainLayout";
 import Loading from "@/components/ui/loading";
-import { Users, ShieldCheck } from "lucide-center-react"; // Use lucide icons
 import { Users as UsersIcon, ShieldCheck as ShieldIcon, Construction } from "lucide-react";
 
 export default function VendorWardAllotmentPage() {
