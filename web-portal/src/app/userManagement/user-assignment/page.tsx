@@ -17,7 +17,7 @@ import MainLayout from "@/components/layout/MainLayout";
 import Loading from "@/components/ui/loading";
 import toast from "react-hot-toast";
 import axios from "axios";
-import { Loader2 } from "lucide-react"; // For loading spinner
+import { Loader2, XCircle } from "lucide-react"; // For loading spinner
 import { useAuth } from "@/features/auth/AuthContext";
 
 const USER_TYPES = [
@@ -99,46 +99,17 @@ const UserAssignmentPage: React.FC = () => {
   } = useQuery({
     queryKey: ["wards", selectedZone, "available-wards"],
     queryFn: async () => {
-      console.log("=== DEBUG: Fetching available wards ===");
-      console.log("Selected zoneId:", selectedZone);
-      console.log("Zone type:", typeof selectedZone);
-      console.log("Zone truthy check:", !!selectedZone);
       const result = await masterDataApi.getAvailableWards(selectedZone!);
-      console.log("API Response received:", result);
-      console.log("Response type:", typeof result);
-      console.log("Response keys:", result ? Object.keys(result) : "null/undefined");
-      if (result && result.wards) {
-        console.log("Wards array length:", result.wards.length);
-        if (result.wards.length > 0) {
-          console.log("First ward sample:", result.wards[0]);
-        }
-      }
-      console.log("=====================================");
       return result;
     },
     enabled: !!selectedZone,
-    refetchInterval: 30000, // Refetch every 30 seconds to get latest assignment status
-    refetchOnWindowFocus: true, // Refetch when user comes back to the page
-    staleTime: 0, // Consider data immediately stale
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   // Extract wards array from the response
   const wards = (wardsResponse as any)?.wards || [];
-
-  // Debug logging
-  useEffect(() => {
-    console.log("=== Ward Assignment Debug Info ===");
-    console.log("Selected zone:", selectedZone);
-    console.log("Wards loading:", wardsLoading);
-    console.log("Wards error:", wardsError);
-    console.log("Wards response:", wardsResponse);
-    console.log("Wards array:", wards);
-    console.log("Wards array length:", wards.length);
-    if (wards.length > 0) {
-      console.log("First ward:", wards[0]);
-    }
-    console.log("===============================");
-  }, [selectedZone, wardsLoading, wardsError, wardsResponse, wards]);
 
   // Fetch Mohallas by selected Wards (only unassigned mohallas)
   const { data: mohallas = [], isLoading: mohallasLoading } = useQuery({
@@ -179,13 +150,11 @@ const UserAssignmentPage: React.FC = () => {
       const newWardAssignments: { [wardId: string]: any } = {};
 
       for (const wardId of selectedWards) {
-        // Fetch mohallas with assignment status for this ward
         const response = await masterDataApi.getAvailableMohallas(wardId);
         const mohallasData = response.mohallas || [];
 
         newWardMohallaMap[wardId] = mohallasData.map((m: any) => m.mohallaId);
 
-        // Track ward-level assignments
         const res = await assignmentApi.getAssignmentsByWard(wardId);
         const assignments = res.assignments || [];
         if (assignments.length > 0) {
@@ -232,19 +201,13 @@ const UserAssignmentPage: React.FC = () => {
 
   // Manual refresh function
   const handleRefresh = () => {
-    console.log("Manual refresh triggered");
-    // Invalidate all related queries aggressively
     queryClient.invalidateQueries({ queryKey: ["wards"] });
     queryClient.invalidateQueries({ queryKey: ["zones"] });
     queryClient.invalidateQueries({ queryKey: ["mohallas"] });
     queryClient.invalidateQueries({ queryKey: ["available-wards"] });
-    queryClient.invalidateQueries({ queryKey: ["allAssignments"] });
-
-    // Force refetch the current query
     queryClient.refetchQueries({
       queryKey: ["wards", selectedZone, "available-wards"],
     });
-
     setLastRefreshed(new Date());
     toast.success("Data refreshed successfully!");
   };
@@ -256,7 +219,6 @@ const UserAssignmentPage: React.FC = () => {
       return;
     }
     
-    // Build assignments array: [{ wardId, mohallaIds }]
     const assignments = Object.entries(wardMohallaMap)
       .map(([wardId, mohallaIds]) => ({
         wardId,
@@ -271,7 +233,6 @@ const UserAssignmentPage: React.FC = () => {
       return;
     }
     
-    // Store pending assignment and show confirmation dialog
     setPendingAssignment({
       userId: selectedUser,
       assignmentType: userType,
@@ -291,575 +252,276 @@ const UserAssignmentPage: React.FC = () => {
     
     try {
       const res = await assignmentApi.bulkAssign(pendingAssignment);
-      console.log("Assignment API response:", res);
-      
       if (res.success && res.assigned && res.assigned.length > 0) {
-        toast.success("Assignment successful!", {
-          position: "top-right",
-        });
-        
-        if (res.conflicts && res.conflicts.length > 0) {
-          toast("Some mohallas were already assigned and skipped.", {
-            icon: "⚠️",
-            position: "top-right",
-          });
-        }
-        
-        // Refresh available wards to update the list
+        toast.success("Assignment successful!");
         queryClient.invalidateQueries({ queryKey: ["wards"] });
         queryClient.invalidateQueries({ queryKey: ["mohallas"] });
         queryClient.invalidateQueries({ queryKey: ["available-wards"] });
-        queryClient.invalidateQueries({ queryKey: ["allAssignments"] });
-
-        // Trigger global update notification
         localStorage.setItem("assignment_updated", Date.now().toString());
-        window.dispatchEvent(
-          new StorageEvent("storage", {
-            key: "assignment_updated",
-            newValue: Date.now().toString(),
-          })
-        );
-
+        window.dispatchEvent(new StorageEvent("storage", { key: "assignment_updated", newValue: Date.now().toString() }));
         setSelectedWards([]);
         setSelectedMohallas([]);
         setSelectedUser("");
-      } else if (res.success && (!res.assigned || res.assigned.length === 0)) {
-        toast(
-          "No new mohallas were assigned. All selected mohallas may already be assigned.",
-          { 
-            icon: "⚠️",
-            position: "top-right",
-          }
-        );
       } else {
-        toast.error("Assignment failed", { position: "top-right" });
+        toast.error("Assignment failed");
       }
     } catch (err: any) {
-      console.error("Assignment API error:", err);
-      toast.error(err?.response?.data?.error || "Assignment failed", {
-        position: "top-right",
-      });
+      toast.error(err?.response?.data?.error || "Assignment failed");
     } finally {
       setSubmitting(false);
       setPendingAssignment(null);
     }
   };
 
-  if (loading) {
-    return <Loading fullScreen />;
-  }
+  if (loading) return <Loading fullScreen />;
 
   return (
     <MainLayout>
-      <Card className="w-full ">
-        <CardHeader className="bg-black text-white text-2xl font-bold p-4 mb-4 border-2 border-amber-50 rounded-lg">
-          User Assignment
-        </CardHeader>
-        <CardContent className="p-8">
-          <form
-            onSubmit={handleSubmit}
-            className="grid grid-cols-1 md:grid-cols-2 gap-6"
-          >
-            <div className="flex flex-col gap-2">
-              <Label>
-                User Type <span className="text-red-500">*</span>
-              </Label>
-              <Select value={userType} onValueChange={setUserType} required>
-                <SelectTrigger className="h-12 text-base font-medium">
-                  <SelectValue placeholder="SELECT" />
-                </SelectTrigger>
-                <SelectContent>
-                  {USER_TYPES.map((type) => (
-                    <SelectItem
-                      key={type.value}
-                      value={type.value}
-                      className="text-black bg-white border-2 border-black hover:bg-blue-300"
-                    >
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>
-                User <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={selectedUser}
-                onValueChange={setSelectedUser}
-                required
-                disabled={!userType}
-              >
-                <SelectTrigger className="h-12 text-base font-medium">
-                  <SelectValue placeholder="Select User..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.length === 0 ? (
-                    <SelectItem value="loading" disabled>
-                      {userType ? "No users found" : "Select user type first"}
-                    </SelectItem>
-                  ) : (
-                    users.map((user: any) => (
-                      <SelectItem
-                        key={user.userId}
-                        value={user.userId}
-                        className="text-black bg-white border-2 border-black hover:bg-blue-300"
-                      >
-                        {user.name || user.username}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>
-                ULB <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={selectedUlb}
-                onValueChange={setSelectedUlb}
-                required
-              >
-                <SelectTrigger className="h-12 text-base font-medium">
-                  <SelectValue placeholder="Select ULB..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {ulbsLoading ? (
-                    <SelectItem
-                      value="loading"
-                      disabled
-                      className="text-black bg-white border-2 border-black hover:bg-blue-300"
-                    >
-                      Loading...
-                    </SelectItem>
-                  ) : (
-                    ulbs.map((ulb: any) => (
-                      <SelectItem
-                        key={ulb.ulbId}
-                        value={ulb.ulbId}
-                        className="text-black bg-white border-2 border-black hover:bg-blue-300"
-                      >
-                        {ulb.ulbName}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label>
-                Zone Name <span className="text-red-500">*</span>
-              </Label>
-              <Select
-                value={selectedZone}
-                onValueChange={setSelectedZone}
-                required
-                disabled={!selectedUlb}
-              >
-                <SelectTrigger className="h-12 text-base font-medium">
-                  <SelectValue placeholder="Select Zone..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {zonesLoading ? (
-                    <SelectItem value="loading" disabled>
-                      Loading...
-                    </SelectItem>
-                  ) : (
-                    zones.map((zone: any) => (
-                      <SelectItem
-                        key={zone.zoneId}
-                        value={zone.zoneId}
-                        className="text-black bg-white border-2 border-black hover:bg-blue-300"
-                      >
-                        {zone.zoneNumber}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Wards Table */}
-            <div className="md:col-span-2">
-              <div className="flex justify-between items-center mb-4">
-                <Label className="text-lg font-semibold">
-                  Wards <span className="text-red-500">*</span>
-                </Label>
-                <div className="flex items-center gap-4">
-                  <span className="text-sm text-gray-500">
-                    Last updated: {lastRefreshed.toLocaleTimeString()}
-                  </span>
-                  <Button
-                    type="button"
-                    onClick={handleRefresh}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    disabled={wardsLoading}
-                  >
-                    {wardsLoading ? "Loading..." : "Refresh Wards"}
-                  </Button>
-                </div>
-              </div>
-              {wardsLoading ? (
-                <div className="text-center py-4">Loading wards...</div>
-              ) : wardsError ? (
-                <div className="text-center py-4 text-red-500">
-                  Error loading wards: {wardsError.message}
-                </div>
-              ) : wards.length === 0 ? (
-                <div className="text-center py-4 text-gray-500">
-                  {selectedZone
-                    ? "No wards found with unassigned mohallas"
-                    : "Select a zone to view wards"}
-                </div>
-              ) : (
-                <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Select
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Ward Name
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Mohallas (Unassigned/Total)
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {wards.map((ward: any) => {
-                        const isFullyAssigned = ward.unassignedMohallas === 0;
-                        return (
-                          <tr key={ward.wardId} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <input
-                                type="checkbox"
-                                checked={selectedWards.includes(ward.wardId)}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setSelectedWards((prev) =>
-                                    checked
-                                      ? [...prev, ward.wardId]
-                                      : prev.filter((id) => id !== ward.wardId)
-                                  );
-                                }}
-                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              />
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">
-                                {ward.wardName}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                Ward #{ward.newWardNumber}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900">
-                                {ward.unassignedMohallas}/{ward.totalMohallas}
-                              </div>
-                              <div className="text-xs text-gray-500">
-                                {ward.assignedMohallas} assigned
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span
-                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  isFullyAssigned
-                                    ? "bg-green-100 text-green-800"
-                                    : ward.assignedMohallas > 0
-                                    ? "bg-yellow-100 text-yellow-800"
-                                    : "bg-blue-100 text-blue-800"
-                                }`}
-                              >
-                                {isFullyAssigned
-                                  ? "Fully Assigned"
-                                  : ward.assignedMohallas > 0
-                                  ? "Partially Assigned"
-                                  : "Available"}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Mohallas Table */}
-            <div className="md:col-span-2">
-              <Label className="text-lg font-semibold mb-4 block">
-                Mohallas <span className="text-red-500">*</span>
-              </Label>
-              {selectedWards.length === 0 ? (
-                <div className="text-center py-4 text-gray-500">
-                  Select wards first to view mohallas
-                </div>
-              ) : (
-                <div className="bg-white shadow-md rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Select
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Mohalla Name
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Assigned To
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {selectedWards
-                        .map((wardId) => {
-                          const mohallaIds = wardMohallaMap[wardId] || [];
-                          const wardName = wards.find(
-                            (w: any) => w.wardId === wardId
-                          )?.wardName;
-                          return mohallaIds.map((mohallaId) => {
-                            const assignedUser =
-                              mohallaAssignments[wardId]?.[mohallaId];
-                            const isAssigned = Boolean(assignedUser);
-                            const mohalla = mohallas.find(
-                              (m: any) => m.mohallaId === mohallaId
-                            );
-
-                            return (
-                              <tr
-                                key={mohallaId}
-                                className={`hover:bg-gray-50 ${
-                                  isAssigned ? "bg-red-50" : ""
-                                }`}
-                              >
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedMohallas.includes(
-                                      mohallaId
-                                    )}
-                                    onChange={(e) => {
-                                      const checked = e.target.checked;
-                                      setSelectedMohallas((prev) =>
-                                        checked
-                                          ? [...prev, mohallaId]
-                                          : prev.filter(
-                                              (id) => id !== mohallaId
-                                            )
-                                      );
-                                    }}
-                                    disabled={isAssigned}
-                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded disabled:opacity-50"
-                                  />
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {mohalla ? mohalla.mohallaName : mohallaId}
-                                  </div>
-                                  <div className="text-sm text-gray-500">
-                                    Ward: {wardName}
-                                  </div>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                  <span
-                                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                      isAssigned
-                                        ? "bg-red-100 text-red-800"
-                                        : "bg-green-100 text-green-800"
-                                    }`}
-                                  >
-                                    {isAssigned ? "Assigned" : "Available"}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                  {assignedUser
-                                    ? assignedUser.name || assignedUser.username
-                                    : "-"}
-                                </td>
-                              </tr>
-                            );
-                          });
-                        })
-                        .flat()}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="col-span-1 md:col-span-2 flex justify-end mt-4">
-              <Button
-                type="submit"
-                className="px-10 py-3 text-lg font-bold bg-gradient-to-r from-amber-500 to-yellow-400 text-black rounded-lg shadow-lg hover:from-yellow-400 hover:to-amber-500 transition-all duration-200 flex items-center gap-2 min-w-[140px] justify-center"
-                disabled={submitting}
-              >
-                {submitting && <Loader2 className="animate-spin w-5 h-5" />}
-                {submitting ? "Assigning..." : "Submit"}
-              </Button>
-            </div>
-          </form>
-          
-          {/* Confirmation Dialog */}
-          {showConfirmDialog && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-              <div className="bg-white text-black rounded-lg p-6 w-[500px] shadow-2xl">
-                <h3 className="text-xl font-bold mb-4 text-red-600">
-                  Confirm Assignment
-                </h3>
-                
-                <div className="mb-6 space-y-3">
-                  <div className="bg-gray-100 p-3 rounded-md">
-                    <p className="text-sm">
-                      <strong className="text-gray-700">User Type:</strong>{" "}
-                      <span className="ml-2 font-semibold">
-                        {pendingAssignment?.assignmentType}
-                      </span>
-                    </p>
-                  </div>
-                  
-                  <div className="bg-gray-100 p-3 rounded-md">
-                    <p className="text-sm">
-                      <strong className="text-gray-700">User:</strong>{" "}
-                      <span className="ml-2 font-semibold">
-                        {users.find((u) => u.userId === pendingAssignment?.userId)?.name || 
-                         users.find((u) => u.userId === pendingAssignment?.userId)?.username || "N/A"}
-                      </span>
-                    </p>
-                  </div>
-                  
-                  <div className="bg-gray-100 p-3 rounded-md">
-                    <p className="text-sm mb-2">
-                      <strong className="text-gray-700">ULB:</strong>{" "}
-                      <span className="ml-2 font-semibold">
-                        {ulbs.find((u: any) => u.ulbId === selectedUlb)?.ulbName || "N/A"}
-                      </span>
-                    </p>
-                    <p className="text-sm">
-                      <strong className="text-gray-700">Zone:</strong>{" "}
-                      <span className="ml-2 font-semibold">
-                        {zones.find((z: any) => z.zoneId === selectedZone)?.zoneNumber || "N/A"}
-                      </span>
-                    </p>
-                  </div>
-                  
-                  <div className="bg-gray-100 p-3 rounded-md max-h-32 overflow-y-auto">
-                    <p className="text-sm mb-2">
-                      <strong className="text-gray-700">Wards:</strong>
-                    </p>
-                    <ul className="text-sm ml-4 list-disc">
-                      {wards
-                        .filter((w: any) => selectedWards.includes(w.wardId))
-                        .map((w: any) => (
-                          <li key={w.wardId} className="text-gray-800">
-                            {w.wardName} (Ward #{w.newWardNumber})
-                          </li>
-                        ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-gray-100 p-3 rounded-md max-h-32 overflow-y-auto">
-                    <p className="text-sm mb-2">
-                      <strong className="text-gray-700">Mohallas to Assign:</strong>
-                    </p>
-                    <p className="text-sm text-gray-800">
-                      {selectedMohallas.length} mohalla(s) selected
-                    </p>
-                  </div>
-                </div>
-                
-                <p className="mb-6 text-gray-700 font-medium">
-                  Are you sure you want to proceed with this assignment?
-                </p>
-                
-                <div className="flex justify-end gap-4">
-                  <button
-                    type="button"
-                    className="px-6 py-2 rounded bg-gray-300 hover:bg-gray-400 transition-colors font-medium"
-                    onClick={() => {
-                      setShowConfirmDialog(false);
-                      setPendingAssignment(null);
-                    }}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="px-6 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium disabled:bg-blue-400"
-                    onClick={confirmAssignment}
-                    disabled={submitting}
-                  >
-                    {submitting ? "Assigning..." : "Confirm Assignment"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          {/* Assignment Summary */}
-          <div className="col-span-2 mt-6">
-            <h3 className="font-bold mb-2">Assignment Summary</h3>
-            <div className="bg-black p-4 rounded-lg text-white">
-              <div>
-                <b>User Type:</b> {userType}
-              </div>
-              <div>
-                <b>User:</b>{" "}
-                {users.find((u: any) => u.userId === selectedUser)?.name || "-"}
-              </div>
-              <div>
-                <b>ULB:</b>{" "}
-                {ulbs.find((u: any) => u.ulbId === selectedUlb)?.ulbName || "-"}
-              </div>
-              <div>
-                <b>Zone:</b>{" "}
-                {zones.find((z: any) => z.zoneId === selectedZone)
-                  ?.zoneNumber || "-"}
-              </div>
-              <div>
-                <b>Wards:</b>{" "}
-                {wards
-                  .filter((w: any) => selectedWards.includes(w.wardId))
-                  .map((w: any) => w.wardName)
-                  .join(", ") || "-"}
-              </div>
-              <div>
-                <b>Mohallas:</b>{" "}
-                {selectedWards
-                  .map((wardId) => {
-                    const mohallaIds = wardMohallaMap[wardId] || [];
-                    const mohallaNames = mohallaIds
-                      .filter((mid) => selectedMohallas.includes(mid))
-                      .map((mid) => {
-                        const mohalla = mohallas.find(
-                          (m: any) => m.mohallaId === mid
-                        );
-                        return mohalla ? mohalla.mohallaName : mid;
-                      });
-                    return mohallaNames.length > 0
-                      ? `${
-                          wards.find((w: any) => w.wardId === wardId)?.wardName
-                        }: ${mohallaNames.join(", ")}`
-                      : null;
-                  })
-                  .filter(Boolean)
-                  .join("; ") || "-"}
-              </div>
+      <div className="min-h-screen bg-[#0B0F19] p-4 md:p-8">
+        <div className="max-w-8xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/50 pb-8">
+            <div>
+              <h1 className="text-3xl font-black text-white tracking-tight italic uppercase">User <span className="text-blue-500">Assignment</span></h1>
+              <p className="text-slate-500 text-sm font-medium mt-1">Provision survey resources and spatial jurisdictions</p>
             </div>
           </div>
-        </CardContent>
-      </Card>
+
+          <div className="bg-[#161B26] border border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden relative">
+            <div className="p-8 border-b border-slate-800/50 bg-slate-800/10 flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-black text-white tracking-tight uppercase italic">Configuration Matrix</h3>
+                <p className="text-sm text-slate-500 font-black uppercase tracking-widest mt-0.5 italic">Define target parameters</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-black text-slate-600 uppercase tracking-widest italic">Cycle: {lastRefreshed.toLocaleTimeString()}</span>
+                <button type="button" onClick={handleRefresh} className="p-2 text-slate-400 hover:text-blue-400 bg-slate-800/50 rounded-xl border border-slate-700/50 transition-all active:scale-95">
+                  <Loader2 className={`w-4 h-4 ${wardsLoading ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+
+            <form onSubmit={handleSubmit} className="p-10 space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div className="space-y-3">
+                  <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1 italic">Identity Type</label>
+                  <Select value={userType} onValueChange={setUserType} required>
+                    <SelectTrigger className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl h-14 px-6 text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all">
+                      <SelectValue placeholder="CHOOSE" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#161B26] border-slate-800 text-slate-300">
+                      {USER_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value} className="focus:bg-blue-600/20 focus:text-blue-400 transition-colors">{type.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1 italic">Target Personnel</label>
+                  <Select value={selectedUser} onValueChange={setSelectedUser} required disabled={!userType}>
+                    <SelectTrigger className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl h-14 px-6 text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-30">
+                      <SelectValue placeholder="SELECT USER" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#161B26] border-slate-800 text-slate-300">
+                      {users.length === 0 ? <SelectItem value="none" disabled>No records found</SelectItem> : users.map((u: any) => (
+                        <SelectItem key={u.userId} value={u.userId} className="focus:bg-blue-600/20 focus:text-blue-400 transition-colors">{u.name || u.username}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1 italic">Corporate Body (ULB)</label>
+                  <Select value={selectedUlb} onValueChange={setSelectedUlb} required>
+                    <SelectTrigger className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl h-14 px-6 text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all">
+                      <SelectValue placeholder="SELECT ULB" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#161B26] border-slate-800 text-slate-300">
+                      {ulbs.map((ulb: any) => (
+                        <SelectItem key={ulb.ulbId} value={ulb.ulbId} className="focus:bg-blue-600/20 focus:text-blue-400 transition-colors">{ulb.ulbName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1 italic">Regional Zone</label>
+                  <Select value={selectedZone} onValueChange={setSelectedZone} required disabled={!selectedUlb}>
+                    <SelectTrigger className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl h-14 px-6 text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all disabled:opacity-30">
+                      <SelectValue placeholder="SELECT ZONE" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#161B26] border-slate-800 text-slate-300">
+                      {zones.map((zone: any) => (
+                        <SelectItem key={zone.zoneId} value={zone.zoneId} className="focus:bg-blue-600/20 focus:text-blue-400 transition-colors">Zone: {zone.zoneNumber}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div className="px-1 flex items-center justify-between">
+                    <label className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] italic">Wards Inventory</label>
+                  </div>
+                  <div className="bg-black/20 border border-slate-800/50 rounded-3xl overflow-hidden min-h-[400px]">
+                    <div className="overflow-x-auto h-[400px]">
+                      <table className="w-full text-left border-collapse sticky-header transition-all">
+                        <thead className="bg-[#161B26] sticky top-0 z-10">
+                          <tr className="border-b border-slate-800 text-[15px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="px-6 py-4 w-12 text-center">Opt</th>
+                            <th className="px-6 py-4">Ward Entity</th>
+                            <th className="px-6 py-4 text-center">Mohallas</th>
+                            <th className="px-6 py-4 w-24">Density</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/30">
+                          {wards.length === 0 ? (
+                            <tr><td colSpan={4} className="px-6 py-20 text-center text-slate-600 italic text-xs font-black uppercase tracking-widest opacity-20">Awaiting Regional Selection</td></tr>
+                          ) : (
+                            wards.map((ward: any) => {
+                              const isFullyAssigned = ward.unassignedMohallas === 0;
+                              return (
+                                <tr key={ward.wardId} className={`hover:bg-blue-500/[0.02] transition-colors group ${selectedWards.includes(ward.wardId) ? 'bg-blue-500/[0.05]' : ''}`}>
+                                  <td className="px-6 py-4 text-center">
+                                    <input type="checkbox" checked={selectedWards.includes(ward.wardId)} onChange={(e) => { const checked = e.target.checked; setSelectedWards((prev) => checked ? [...prev, ward.wardId] : prev.filter((id) => id !== ward.wardId)); }} className="w-4 h-4 bg-slate-800 border-slate-700 rounded transition-all checked:bg-blue-600" />
+                                  </td>
+                                  <td className="px-6 py-4">
+                                    <div className="flex flex-col">
+                                      <span className="text-slate-200 font-black text-sm uppercase tracking-tight">{ward.wardName}</span>
+                                      <span className="text-blue-500/60 font-mono text-[12px] font-bold">W#{ward.newWardNumber}</span>
+                                    </div>
+                                  </td>
+                                  <td className="px-6 py-4 text-center"><span className="text-sm font-black text-slate-400">{ward.unassignedMohallas}/{ward.totalMohallas}</span></td>
+                                  <td className="px-6 py-4">
+                                     {isFullyAssigned ? <span className="text-[12px] font-black text-emerald-500/60 bg-emerald-500/5 px-2 py-1 rounded-full border border-emerald-500/10 uppercase tracking-tighter">Saturated</span> : <span className="text-[12px] font-black text-blue-400 bg-blue-500/5 px-2 py-1 rounded-full border border-blue-500/10 uppercase tracking-tighter">Available</span>}
+                                  </td>
+                                </tr>
+                              );
+                            })
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="px-1 flex items-center justify-between">
+                    <label className="text-sm font-black text-slate-500 uppercase tracking-[0.2em] italic">Mohallas Matrix</label>
+                  </div>
+                  <div className="bg-black/20 border border-slate-800/50 rounded-3xl overflow-hidden min-h-[400px]">
+                    <div className="overflow-x-auto h-[400px]">
+                      <table className="w-full text-left border-collapse transition-all">
+                        <thead className="bg-[#161B26] sticky top-0 z-10">
+                          <tr className="border-b border-slate-800 text-[15px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="px-6 py-4 w-12 text-center">Opt</th>
+                            <th className="px-6 py-4">Locality Name</th>
+                            <th className="px-6 py-4">Current Anchor</th>
+                            <th className="px-6 py-4">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/30">
+                          {selectedWards.length === 0 ? (
+                            <tr><td colSpan={4} className="px-6 py-20 text-center text-slate-600 italic text-xs font-black uppercase tracking-widest opacity-20">Zero Proxies detected</td></tr>
+                          ) : (
+                            selectedWards.map((wardId) => {
+                              const mIds = wardMohallaMap[wardId] || [];
+                              const wardData = wards.find((w: any) => w.wardId === wardId);
+                              return mIds.map((mohallaId) => {
+                                const assignedUser = mohallaAssignments[wardId]?.[mohallaId];
+                                const isAssigned = Boolean(assignedUser);
+                                const mohalla = mohallas.find((m: any) => m.mohallaId === mohallaId);
+                                return (
+                                  <tr key={mohallaId} className={`hover:bg-blue-500/[0.02] transition-colors group ${isAssigned ? 'opacity-40 italic' : ''} ${selectedMohallas.includes(mohallaId) ? 'bg-blue-500/[0.05]' : ''}`}>
+                                    <td className="px-6 py-4 text-center">
+                                      <input type="checkbox" checked={selectedMohallas.includes(mohallaId)} onChange={(e) => { const checked = e.target.checked; setSelectedMohallas((prev) => checked ? [...prev, mohallaId] : prev.filter((id) => id !== mohallaId)); }} disabled={isAssigned} className="w-4 h-4 bg-slate-800 border-slate-700 rounded transition-all disabled:cursor-not-allowed" />
+                                    </td>
+                                    <td className="px-6 py-4">
+                                      <div className="flex flex-col">
+                                        <span className="text-slate-200 font-black text-xs uppercase tracking-tight">{mohalla ? mohalla.mohallaName : mohallaId}</span>
+                                        <span className="text-slate-500 text-[12px] font-bold">Ref: {wardData?.wardName}</span>
+                                      </div>
+                                    </td>
+                                    <td className="px-6 py-4"><span className="text-sm font-bold text-slate-400">{assignedUser ? (assignedUser.name || assignedUser.username) : "SYSTEM_UNBOUND"}</span></td>
+                                    <td className="px-6 py-4">{isAssigned ? <span className="text-[12px] font-black text-red-400/60 uppercase tracking-widest">Locked</span> : <span className="text-[12px] font-black text-emerald-400 uppercase tracking-widest">Open</span>}</td>
+                                  </tr>
+                                );
+                              });
+                            }).flat()
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-8">
+                <button type="submit" disabled={submitting} className="px-12 py-5 bg-blue-600 text-white font-black rounded-3xl shadow-2xl shadow-blue-600/20 hover:bg-blue-500 transition-all uppercase tracking-[0.2em] text-xs active:scale-95 disabled:opacity-50 flex items-center gap-3">
+                  {submitting && <Loader2 className="animate-spin w-4 h-4" />}
+                  {submitting ? "PROVISIONING..." : "COMMIT ASSIGNMENT"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        {showConfirmDialog && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+            <div className="bg-[#161B26] border border-slate-800 w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+               <div className="p-10 border-b border-slate-800 flex items-center justify-between bg-white/[0.01]">
+                 <div>
+                   <h3 className="text-2xl font-black text-white tracking-tight uppercase italic">Final Validation</h3>
+                   <p className="text-sm text-slate-500 font-black uppercase tracking-widest mt-1 italic">Review deployment parameters</p>
+                 </div>
+                 <button onClick={() => setShowConfirmDialog(false)} className="p-2 text-slate-500 hover:text-white transition-colors">
+                   <XCircle className="w-8 h-8" />
+                 </button>
+               </div>
+               
+               <div className="p-10 space-y-8">
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="bg-slate-800/20 p-6 rounded-3xl border border-slate-700/30">
+                       <p className="text-lg font-black text-white capitalize">{users.find((u) => u.userId === pendingAssignment?.userId)?.name || "N/A"}</p>
+                       <p className="text-sm font-bold text-blue-500/60 uppercase tracking-tighter mt-1">{pendingAssignment?.assignmentType} REGISTRY</p>
+                    </div>
+                    <div className="bg-slate-800/20 p-6 rounded-3xl border border-slate-700/30">
+                       <p className="text-[12px] font-black text-slate-500 uppercase tracking-widest italic mb-2"></p>
+                       <p className="text-lg font-black text-white">{ulbs.find((u: any) => u.ulbId === selectedUlb)?.ulbName || "N/A"}</p>
+                       <p className="text-sm font-bold text-slate-400/60 uppercase tracking-tighter mt-1">ZONE: {zones.find((z: any) => z.zoneId === selectedZone)?.zoneNumber || "N/A"}</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-600/5 p-6 rounded-3xl border border-blue-500/10 max-h-40 overflow-y-auto">
+                      <p className="text-[15px] font-black text-blue-400 uppercase tracking-widest italic mb-3">Target Wards/Mohallas ({selectedMohallas.length} Localities)</p>
+                      <div className="flex flex-wrap gap-2">
+                         {selectedWards.map((wardId) => {
+                           const ward = wards.find((w: any) => w.wardId === wardId);
+                           const mohallaIds = (wardMohallaMap[wardId] || []).filter(mid => selectedMohallas.includes(mid));
+                           if (mohallaIds.length === 0) return null;
+                           return (
+                             <div key={wardId} className="flex flex-col gap-1 bg-slate-800/80 p-3 rounded-2xl border border-slate-700/50 min-w-[140px]">
+                               <span className="text-sm font-black text-slate-500 uppercase tracking-tighter">WARD: {ward?.wardName || wardId}</span>
+                               <span className="text-[15px] font-bold text-white italic">{mohallaIds.length} LOCALITIES</span>
+                             </div>
+                           );
+                         })}
+                      </div>
+                  </div>
+
+                  <p className="text-slate-500 text-xs font-medium italic text-center px-10">By confirming, you authorize the selected personnel to undertake jurisdictional operations within the specified spatial boundaries.</p>
+
+                  <div className="flex gap-4 pt-4">
+                      <button onClick={() => setShowConfirmDialog(false)} className="flex-1 px-8 py-5 bg-slate-800 text-slate-400 font-black rounded-3xl hover:bg-slate-700 transition-all uppercase tracking-widest text-[11px] active:scale-95">ABORT</button>
+                      <button onClick={confirmAssignment} disabled={submitting} className="flex-[2] px-8 py-5 bg-blue-600 text-white font-black rounded-3xl shadow-2xl shadow-blue-900/40 hover:bg-blue-500 transition-all uppercase tracking-widest text-[11px] active:scale-95 disabled:opacity-50">{submitting ? "SYNCING..." : "CONFIRM DEPLOYMENT"}</button>
+                  </div>
+               </div>
+            </div>
+          </div>
+        )}
+      </div>
     </MainLayout>
   );
 };

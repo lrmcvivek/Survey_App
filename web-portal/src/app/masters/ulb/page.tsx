@@ -7,6 +7,22 @@ import Loading from "@/components/ui/loading";
 import toast from "react-hot-toast";
 import { useAuth } from "@/features/auth/AuthContext";
 import { getUserRoleRank, ROLE_RANK } from "@/lib/api";
+import { 
+  Building2, 
+  Search, 
+  Map, 
+  Navigation, 
+  Home, 
+  Edit3, 
+  Trash2, 
+  ChevronUp, 
+  ChevronDown, 
+  Plus, 
+  MoreHorizontal,
+  CheckCircle2,
+  XCircle,
+  Database
+} from "lucide-react";
 
 export default function UlbMasterPage() {
   const { user } = useAuth();
@@ -56,7 +72,7 @@ export default function UlbMasterPage() {
       setShowEditModal(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || "Failed to update ULB");
+      toast.error(error.response?.data?.error || "Failed to update record");
     },
   });
 
@@ -65,11 +81,11 @@ export default function UlbMasterPage() {
     mutationFn: (ulbId: string) => masterDataApi.deleteUlb(ulbId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ulbs-with-stats"] });
-      toast.success("ULB deleted successfully");
+      toast.success("ULB removed successfully");
       setShowDeleteConfirm(false);
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.error || "Failed to delete ULB");
+      toast.error(error.response?.data?.error || "Failed to delete record");
     },
   });
 
@@ -109,8 +125,8 @@ export default function UlbMasterPage() {
 
   // Get sort icon
   const getSortIcon = (columnKey: string) => {
-    if (!sortConfig || sortConfig.key !== columnKey) return "↕️";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
+    if (!sortConfig || sortConfig.key !== columnKey) return <MoreHorizontal className="w-3 h-3 text-slate-600" />;
+    return sortConfig.direction === "asc" ? <ChevronUp className="w-3 h-3 text-blue-400" /> : <ChevronDown className="w-3 h-3 text-blue-400" />;
   };
 
   // Handle edit click
@@ -138,305 +154,268 @@ export default function UlbMasterPage() {
     }
   };
 
-  if (loading) {
+  if (loading || ulbsLoading) {
     return <Loading fullScreen />;
   }
 
   return (
     <MainLayout>
-      <div className="bg-gray-900 min-h-screen text-white">
-        <h1 className="text-3xl font-bold mb-6">ULB Master</h1>
+      <div className="min-h-screen bg-[#0B0F19] p-4 md:p-8">
+        <div className="max-w-8xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/50 pb-8">
+            <div>
+              <h1 className="text-3xl font-black text-white tracking-tight">ULB Master</h1>
+              <p className="text-slate-500 text-sm font-medium mt-1">Management console for Urban Local Bodies</p>
+            </div>
+            {canEditMasters && (
+              <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-xl shadow-blue-900/20 active:scale-95">
+                <Plus className="w-4 h-4" />
+                Add New ULB
+              </button>
+            )}
+          </div>
 
-        <div>
-          {ulbsLoading && (
-            <div className="text-gray-400">Loading ULBs...</div>
-          )}
-          {ulbsError && (
-            <div className="text-red-400">Error loading ULBs</div>
-          )}
-          {!ulbsLoading && !ulbsError && (
-            <table className="w-full bg-gray-800 rounded-lg overflow-hidden text-sm">
-              <thead>
-                <tr>
-                  <th 
-                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-700"
-                    onClick={() => handleSort("ulbCode")}
-                  >
-                    ULB Code {getSortIcon("ulbCode")}
-                  </th>
-                  <th 
-                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-700"
-                    onClick={() => handleSort("ulbName")}
-                  >
-                    Name {getSortIcon("ulbName")}
-                  </th>
-                  <th 
-                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-700"
-                    onClick={() => handleSort("totalZones")}
-                  >
-                    No. of Zones {getSortIcon("totalZones")}
-                  </th>
-                  <th 
-                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-700"
-                    onClick={() => handleSort("totalWards")}
-                  >
-                    No. of Wards {getSortIcon("totalWards")}
-                  </th>
-                  <th 
-                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-700"
-                    onClick={() => handleSort("totalMohallas")}
-                  >
-                    No. of Mohallas {getSortIcon("totalMohallas")}
-                  </th>
-                  <th className="px-4 py-2 text-left">Active</th>
-                  <th className="px-4 py-2 text-left">Description</th>
-                  <th className="px-4 py-2 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getSortedUlbs().length > 0 ? (
-                  getSortedUlbs().map((ulb: any) => (
-                    <tr key={ulb.ulbId} className="border-b border-gray-700">
-                      <td className="px-4 py-2">{ulb.ulbCode}</td>
-                      <td className="px-4 py-2">{ulb.ulbName}</td>
-                      <td className="px-4 py-2">{ulb.totalZones}</td>
-                      <td className="px-4 py-2">{ulb.totalWards}</td>
-                      <td className="px-4 py-2">{ulb.totalMohallas}</td>
-                      <td className="px-4 py-2">
-                        {ulb.isActive ? "Yes" : "No"}
-                      </td>
-                      <td className="px-4 py-2">{ulb.description || "-"}</td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center space-x-2">
-                          {/* Edit Button */}
-                          <button
-                            onClick={() => handleEditClick(ulb)}
-                            disabled={!canEditMasters}
-                            className={`p-2 rounded-lg transition ${
-                              canEditMasters
-                                ? "text-blue-400 hover:bg-blue-900"
-                                : "text-gray-600 cursor-not-allowed"
-                            }`}
-                            title={!canEditMasters ? "Only ADMIN or SUPERADMIN can edit" : "Edit ULB"}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          
-                          {/* Delete Button */}
-                          <button
-                            onClick={() => {
-                              setSelectedUlb(ulb);
-                              setShowDeleteConfirm(true);
-                            }}
-                            disabled={!canEditMasters}
-                            className={`p-2 rounded-lg transition ${
-                              canEditMasters
-                                ? "text-red-400 hover:bg-red-900"
-                                : "text-gray-600 cursor-not-allowed"
-                            }`}
-                            title={!canEditMasters ? "Only ADMIN or SUPERADMIN can delete" : "Delete ULB"}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+          {/* Search & Stats Card */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1 group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Search by name or code..." 
+                className="w-full bg-[#161B26] border border-slate-800 rounded-2xl py-3.5 pl-12 pr-4 text-sm text-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-medium"
+              />
+            </div>
+            <div className="bg-[#161B26] border border-slate-800 rounded-2xl px-6 py-3.5 flex items-center gap-4 shadow-sm">
+              <div className="w-8 h-8 bg-blue-500/10 rounded-xl flex items-center justify-center">
+                <Building2 className="w-4 h-4 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest leading-none">Registered</p>
+                <p className="text-lg font-black text-white mt-1 leading-none">{ulbs?.length || 0}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="bg-[#161B26] border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl backdrop-blur-xl">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-800/20 border-b border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                    <th className="px-8 py-6 cursor-pointer hover:bg-slate-800/30 transition-colors" onClick={() => handleSort("ulbCode")}>
+                      <div className="flex items-center gap-2">ULB Code {getSortIcon("ulbCode")}</div>
+                    </th>
+                    <th className="px-8 py-6 cursor-pointer hover:bg-slate-800/30 transition-colors" onClick={() => handleSort("ulbName")}>
+                      <div className="flex items-center gap-2">Corporate Name {getSortIcon("ulbName")}</div>
+                    </th>
+                    <th className="px-8 py-6 text-center">Zones</th>
+                    <th className="px-8 py-6 text-center">Wards</th>
+                    <th className="px-8 py-6 text-center">Mohallas</th>
+                    <th className="px-8 py-6">Status</th>
+                    <th className="px-8 py-6 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/50">
+                  {getSortedUlbs().length > 0 ? (
+                    getSortedUlbs().map((ulb: any) => (
+                      <tr key={ulb.ulbId} className="hover:bg-blue-500/[0.02] transition-colors group">
+                        <td className="px-8 py-6">
+                          <span className="text-blue-400 font-black text-xs px-3 py-1 bg-blue-400/5 rounded-full border border-blue-400/10">{ulb.ulbCode}</span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col gap-0.5">
+                            <span className="text-slate-200 font-black text-sm uppercase tracking-tight">{ulb.ulbName}</span>
+                            <span className="text-slate-500 text-[10px] font-bold italic truncate max-w-[250px]">{ulb.description || "Internal Master Record"}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-center">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-800/30 rounded-full border border-slate-700/50">
+                             <Map className="w-3 h-3 text-slate-500" />
+                             <span className="text-xs font-black text-slate-300">{ulb.totalZones}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-center">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-800/30 rounded-full border border-slate-700/50">
+                             <Navigation className="w-3 h-3 text-slate-500" />
+                             <span className="text-xs font-black text-slate-300">{ulb.totalWards}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 text-center">
+                          <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-800/30 rounded-full border border-slate-700/50">
+                             <Home className="w-3 h-3 text-slate-500" />
+                             <span className="text-xs font-black text-slate-300">{ulb.totalMohallas}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          {ulb.isActive ? (
+                            <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-black uppercase tracking-widest italic px-3 py-1 bg-emerald-400/5 rounded-full border border-emerald-400/10 w-max">
+                              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                              Active
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-slate-500 text-[10px] font-black uppercase tracking-widest italic px-3 py-1 bg-slate-500/5 rounded-full border border-slate-500/10 w-max">
+                              <div className="w-1.5 h-1.5 bg-slate-600 rounded-full"></div>
+                              Inactive
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            <button
+                              onClick={() => handleEditClick(ulb)}
+                              disabled={!canEditMasters}
+                              className={`p-2 rounded-xl transition-all ${
+                                canEditMasters
+                                  ? "text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 shadow-sm"
+                                  : "text-slate-800 cursor-not-allowed"
+                              }`}
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedUlb(ulb);
+                                setShowDeleteConfirm(true);
+                              }}
+                              disabled={!canEditMasters}
+                              className={`p-2 rounded-xl transition-all ${
+                                canEditMasters
+                                  ? "text-slate-400 hover:text-red-400 hover:bg-red-400/10 shadow-sm"
+                                  : "text-slate-800 cursor-not-allowed"
+                              }`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="px-8 py-20 text-center">
+                        <div className="flex flex-col items-center justify-center opacity-20">
+                          <Database className="w-12 h-12 mb-4" />
+                          <p className="text-xs font-black uppercase tracking-widest italic">Inventory register empty</p>
                         </div>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-4 text-center text-gray-400">
-                      No ULBs found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
 
-        {/* Edit ULB Modal */}
-        {showEditModal && selectedUlb && (
-          <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="relative mx-auto max-w-lg shadow-2xl rounded-2xl bg-gradient-to-br from-white via-gray-50 to-gray-100 border border-gray-200 w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="text-center mb-4">
-                  <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 mb-3 shadow-lg transform transition-transform hover:scale-110">
-                    <svg className="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">Edit ULB</h3>
+        {/* Edit Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+            <div className="bg-[#161B26] border border-slate-800 w-full max-w-xl rounded-[2.5rem] shadow-[0_32px_128px_-16px_rgba(0,0,0,0.5)] overflow-hidden transition-all animate-in fade-in zoom-in duration-300">
+              <div className="p-10 border-b border-slate-800 flex items-center justify-between bg-white/[0.01]">
+                <div>
+                   <h3 className="text-2xl font-black text-white tracking-tight">Modify Identity</h3>
+                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-1 italic leading-none">Record Reference: #{selectedUlb?.ulbCode}</p>
                 </div>
-                <form onSubmit={handleUpdate} className="space-y-3">
-                  <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      <span className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 6h14a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z" />
-                        </svg>
-                        ULB Code
-                      </span>
-                    </label>
+                <button onClick={() => setShowEditModal(false)} className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-xl transition-all">
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
+              <form onSubmit={handleUpdate} className="p-10 space-y-8">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">ULB Code</label>
                     <input
                       type="text"
                       value={editFormData.ulbCode}
                       onChange={(e) => setEditFormData({ ...editFormData, ulbCode: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white"
-                      placeholder="Enter ULB code"
+                      className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 text-sm text-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all outline-none font-bold"
                       required
                     />
                   </div>
-                  <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      <span className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024-.195 1.414-.586l7-7a2 2 0 000-2.828l-7-7a2 2 0 00-2.828 0l-7 7a1.994 1.994 0 00-1.414.586L3 12c0 .512.195 1.024.586 1.414l7 7c.39.39.902.586 1.414.586h5c.512 0 1.024-.195 1.414-.586l7-7a2 2 0 000-2.828l-7-7a2 2 0 00-2.828 0L7 7z" />
-                        </svg>
-                        ULB Name
-                      </span>
-                    </label>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Corporate Name</label>
                     <input
                       type="text"
                       value={editFormData.ulbName}
                       onChange={(e) => setEditFormData({ ...editFormData, ulbName: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white"
-                      placeholder="Enter ULB name"
+                      className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 text-sm text-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all outline-none font-bold"
                       required
                     />
                   </div>
-                  <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      <span className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Description
-                      </span>
-                    </label>
-                    <textarea
-                      value={editFormData.description}
-                      onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white resize-none"
-                      rows={3}
-                      placeholder="Enter ULB description (optional)"
-                    />
-                  </div>
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 shadow-sm border border-blue-100">
-                    <label className="flex items-center cursor-pointer group">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          checked={editFormData.isActive}
-                          onChange={(e) => setEditFormData({ ...editFormData, isActive: e.target.checked })}
-                          className="sr-only"
-                        />
-                        <div className={`block w-12 h-6 rounded-full transition-colors duration-200 ${editFormData.isActive ? 'bg-gradient-to-r from-green-400 to-green-500' : 'bg-gray-300'}`}></div>
-                        <div className={`absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full transition-transform duration-200 flex items-center justify-center shadow-md ${editFormData.isActive ? 'transform translate-x-6' : ''}`}>
-                          {editFormData.isActive ? (
-                            <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-                      <div className="ml-3">
-                        <span className="text-xs font-bold text-gray-700 group-hover:text-blue-600 transition-colors">
-                          {editFormData.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => setShowEditModal(false)}
-                      className="px-4 py-2 text-gray-700 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg hover:from-gray-200 hover:to-gray-300 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 text-sm"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={updateUlbMutation.isPending}
-                      className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 disabled:from-blue-300 disabled:to-indigo-400 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center gap-1.5 text-sm"
-                    >
-                      {updateUlbMutation.isPending ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Updating...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Update ULB
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && selectedUlb && (
-          <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-gray-800 to-gray-900 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="relative mx-auto max-w-md shadow-2xl rounded-2xl bg-gradient-to-br from-white via-red-50 to-white border border-red-200 w-full">
-              <div className="p-6 text-center">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-red-400 to-red-600 mb-4 shadow-lg transform transition-transform hover:scale-110">
-                  <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
                 </div>
-                <h3 className="text-xl font-bold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent mb-2">Delete ULB</h3>
-                <p className="text-gray-600 mb-5 leading-relaxed text-sm">
-                  Are you sure you want to delete <strong className="text-red-600">{selectedUlb.ulbName}</strong> ? 
-                  <span className="block mt-1.5 text-xs text-gray-500">This action cannot be undone and all associated data may be affected.</span>
-                </p>
-                <div className="flex justify-center gap-2">
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Internal Metadata</label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 text-sm text-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all outline-none resize-none font-bold min-h-[120px]"
+                    placeholder="Notes for administration..."
+                  />
+                </div>
+                <div className="flex items-center justify-between bg-slate-800/20 p-6 rounded-3xl border border-slate-800/50">
+                  <div>
+                    <p className="text-xs font-black text-white uppercase tracking-tight">Active Visibility</p>
+                    <p className="text-[10px] font-bold text-slate-500 italic">Toggle status in global registry</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input 
+                      type="checkbox" 
+                      checked={editFormData.isActive}
+                      onChange={(e) => setEditFormData({ ...editFormData, isActive: e.target.checked })}
+                      className="sr-only peer" 
+                    />
+                    <div className="w-14 h-7 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[4px] after:start-[4px] after:bg-white after:rounded-full after:h-5 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+                <div className="flex gap-4">
                   <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    disabled={deleteUlbMutation.isPending}
-                    className="px-4 py-2 text-gray-700 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg hover:from-gray-200 hover:to-gray-300 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-50 text-sm"
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="flex-1 px-8 py-5 bg-slate-800 text-slate-300 font-black rounded-3xl hover:bg-slate-700 transition-all uppercase tracking-widest text-[11px] active:scale-95"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleDelete}
-                    disabled={deleteUlbMutation.isPending}
-                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 disabled:from-red-300 disabled:to-red-400 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center gap-1.5 text-sm"
+                    type="submit"
+                    disabled={updateUlbMutation.isPending}
+                    className="flex-[2] px-8 py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl shadow-blue-600/20 hover:bg-blue-500 transition-all uppercase tracking-widest text-[11px] disabled:opacity-50 active:scale-95"
                   >
-                    {deleteUlbMutation.isPending ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete ULB
-                      </>
-                    )}
+                    {updateUlbMutation.isPending ? "Syncing..." : "Update Record"}
                   </button>
                 </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Modal */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+            <div className="bg-[#161B26] border border-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 text-center space-y-8 animate-in fade-in zoom-in duration-300">
+              <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
+                <Trash2 className="w-10 h-10" />
+              </div>
+              <div className="space-y-3">
+                <h3 className="text-2xl font-black text-white tracking-tight uppercase">Excise Data?</h3>
+                <p className="text-slate-400 font-medium italic">
+                  Permanently remove <span className="text-red-400 font-black">"{selectedUlb?.ulbName}"</span>? 
+                  <span className="block mt-2 text-[10px] font-black tracking-[0.2em] uppercase text-slate-600">This action is irreversible.</span>
+                </p>
+              </div>
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-6 py-4 bg-slate-800 text-slate-300 font-black rounded-2xl hover:bg-slate-700 transition-all uppercase tracking-widest text-[10px]"
+                >
+                  Abort
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleteUlbMutation.isPending}
+                  className="flex-1 px-6 py-4 bg-red-600 text-white font-black rounded-2xl shadow-xl shadow-red-900/20 hover:bg-red-500 transition-all uppercase tracking-widest text-[10px] disabled:opacity-50"
+                >
+                  {deleteUlbMutation.isPending ? "Excising..." : "Confirm Removal"}
+                </button>
               </div>
             </div>
           </div>

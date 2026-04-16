@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { masterDataApi, surveyStatusApi, wardApi } from "@/lib/api";
 import toast from "react-hot-toast";
+import { XCircle, CheckCircle2, AlertTriangle, Search, ChevronDown, Activity } from "lucide-react";
 
 interface StatusChangeModalProps {
   isOpen: boolean;
@@ -24,28 +25,24 @@ export default function StatusChangeModal({
 
   const queryClient = useQueryClient();
 
-  // Fetch all wards (with status, no status filter)
   const { data: wards = [] } = useQuery({
     queryKey: ["all-wards"],
     queryFn: masterDataApi.getAllWardsWithStatus,
     enabled: isOpen,
   });
 
-  // Fetch all possible statuses
   const { data: statuses = [] } = useQuery({
     queryKey: ["ward-statuses"],
     queryFn: surveyStatusApi.getAllWardStatuses,
     enabled: isOpen,
   });
 
-  // Filter wards based on search term
   const filteredWards = wards.filter((ward: any) =>
     `${ward.newWardNumber} - ${ward.wardName}`
       .toLowerCase()
       .includes(wardSearchTerm.toLowerCase())
   );
 
-  // Mutation for updating ward status
   const updateStatusMutation = useMutation({
     mutationFn: ({
       wardId,
@@ -62,20 +59,17 @@ export default function StatusChangeModal({
       handleClose();
     },
     onError: (error: any) => {
-      console.error("Status update error:", error);
       const errorMessage = error?.response?.data?.error || "Failed to update status";
       toast.error(errorMessage);
     },
   });
 
-  // Refetch wards after status update to get the latest status
   useEffect(() => {
     if (updateStatusMutation.isSuccess) {
       queryClient.invalidateQueries({ queryKey: ["all-wards"] });
     }
   }, [updateStatusMutation.isSuccess, queryClient]);
 
-  // Get current status and zone for selected ward
   useEffect(() => {
     const fetchWardDetails = async () => {
       if (selectedWard) {
@@ -95,7 +89,6 @@ export default function StatusChangeModal({
             setSelectedStatus(null);
           }
         } catch (error) {
-          console.error("Error fetching ward details:", error);
           setWardZone("N/A");
           setCurrentStatus("Unknown");
           setSelectedStatus(null);
@@ -110,7 +103,6 @@ export default function StatusChangeModal({
     fetchWardDetails();
   }, [selectedWard, updateStatusMutation.isSuccess]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -174,79 +166,67 @@ export default function StatusChangeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-      <div className="bg-white text-black rounded-lg p-6 w-96 shadow-lg">
-        <div className="mb-4">
-          <h2 className="text-xl font-bold mb-4">Change Survey Status</h2>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+      <div className="bg-[#161B26] border border-slate-800 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+        <div className="p-10 border-b border-slate-800 flex items-center justify-between">
+           <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-blue-600/10 rounded-2xl flex items-center justify-center text-blue-400">
+                 <Activity className="w-6 h-6" />
+              </div>
+              <div>
+                 <h3 className="text-2xl font-black text-white tracking-tight">Survey Status</h3>
+                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-1 italic">Update lifecycle state</p>
+              </div>
+           </div>
+           <button onClick={handleClose} className="text-slate-500 hover:text-white transition-colors">
+             <XCircle className="w-7 h-7" />
+           </button>
+        </div>
 
-          {/* Ward Selection with Search */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-2">
-              Select Ward
-            </label>
+        <div className="p-10 space-y-8">
+          {/* Ward Search */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Target Ward Identity</label>
             <div className="relative" ref={wardDropdownRef}>
-              <input
-                type="text"
-                placeholder="Search and select a ward..."
-                value={wardSearchTerm}
-                onChange={(e) => {
-                  setWardSearchTerm(e.target.value);
-                  setIsWardDropdownOpen(true);
-                  if (!e.target.value) {
-                    setSelectedWard("");
-                  }
-                }}
-                onFocus={() => setIsWardDropdownOpen(true)}
-                className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500"
-              />
-
-              {/* Dropdown Arrow */}
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none">
-                <svg
-                  className={`w-4 h-4 text-gray-400 transition-transform ${
-                    isWardDropdownOpen ? "rotate-180" : ""
-                  }`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
+              <div className="relative group">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Registry lookup..."
+                  value={wardSearchTerm}
+                  onChange={(e) => {
+                    setWardSearchTerm(e.target.value);
+                    setIsWardDropdownOpen(true);
+                    if (!e.target.value) setSelectedWard("");
+                  }}
+                  onFocus={() => setIsWardDropdownOpen(true)}
+                  className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl px-14 py-5 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all font-bold"
+                />
+                <ChevronDown className={`absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 transition-transform ${isWardDropdownOpen ? 'rotate-180' : ''}`} />
               </div>
 
-              {/* Dropdown Options */}
               {isWardDropdownOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                <div className="absolute z-20 w-full mt-3 bg-[#1F2937] border border-slate-700/50 rounded-2xl shadow-2xl max-h-64 overflow-y-auto overflow-x-hidden p-2 space-y-1 scrollbar-hide">
                   {filteredWards.length > 0 ? (
                     filteredWards.map((ward: any) => (
                       <div
                         key={ward.wardId}
-                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0"
-                        onClick={() =>
-                          handleWardSelect(
-                            ward.wardId,
-                            `${ward.newWardNumber} - ${ward.wardName}`
-                          )
-                        }
+                        className="px-6 py-4 hover:bg-slate-700/50 rounded-xl cursor-pointer transition-colors group"
+                        onClick={() => handleWardSelect(ward.wardId, `${ward.newWardNumber} - ${ward.wardName}`)}
                       >
-                        <div className="font-medium">
+                        <div className="font-black text-sm text-slate-200 uppercase tracking-tight group-hover:text-blue-400 transition-colors">
                           {ward.newWardNumber} - {ward.wardName}
                         </div>
                         {ward.description && (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-[10px] font-bold text-slate-500 italic truncate mt-0.5">
                             {ward.description}
                           </div>
                         )}
                       </div>
                     ))
                   ) : (
-                    <div className="px-3 py-2 text-gray-500">
-                      No wards found
+                    <div className="px-6 py-8 text-center text-slate-500 italic text-xs">
+                      No matching records detected
                     </div>
                   )}
                 </div>
@@ -254,62 +234,57 @@ export default function StatusChangeModal({
             </div>
           </div>
 
-          {/* Current Status Display */}
-          {currentStatus && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">
-                Current Status
-              </label>
-              <div className="p-2 bg-gray-100 rounded-md">{currentStatus}</div>
-            </div>
-          )}
-
-          {/* Zone Display */}
-          {wardZone && (
-            <div className="mb-4">
-              <label className="block text-sm font-medium mb-2">Zone</label>
-              <div className="p-2 bg-gray-100 rounded-md">{wardZone}</div>
-            </div>
-          )}
-
-          {/* New Status Selection */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium mb-2">New Status</label>
-            <select
-              className="w-full p-2 border border-gray-300 rounded-md"
-              value={selectedStatus || ""}
-              onChange={(e) =>
-                setSelectedStatus(Number(e.target.value) || null)
-              }
-            >
-              <option value="">Select new status...</option>
-              {statuses.map((status: any) => (
-                <option key={status.wardStatusId} value={status.wardStatusId}>
-                  {status.statusName}
-                </option>
-              ))}
-            </select>
+          {/* Details Grid */}
+          <div className="grid grid-cols-2 gap-6 items-start">
+             <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Current State</label>
+                <div className="px-6 py-4 bg-slate-800/20 rounded-2xl border border-slate-800/50 text-sm font-black text-slate-300 italic">
+                   {currentStatus || "Registry Offline"}
+                </div>
+             </div>
+             <div className="space-y-3">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Zone Anchor</label>
+                <div className="px-6 py-4 bg-slate-800/20 rounded-2xl border border-slate-800/50 text-sm font-black text-slate-300 italic">
+                   {wardZone || "N/A"}
+                </div>
+             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-4">
+          {/* New Status */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Transition To</label>
+            <div className="relative group">
+               <select
+                 className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-5 text-sm font-black text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/50 transition-all cursor-pointer appearance-none"
+                 value={selectedStatus || ""}
+                 onChange={(e) => setSelectedStatus(Number(e.target.value) || null)}
+               >
+                 <option value="" className="bg-slate-900">Choose state transition...</option>
+                 {statuses.map((status: any) => (
+                   <option key={status.wardStatusId} value={status.wardStatusId} className="bg-slate-900">
+                     {status.statusName}
+                   </option>
+                 ))}
+               </select>
+               <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Footer Actions */}
+          <div className="flex gap-4 pt-6">
             <button
-              className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+              className="flex-1 px-8 py-5 bg-slate-800 text-slate-400 font-black rounded-3xl hover:bg-slate-700 transition-all uppercase tracking-widest text-[11px] active:scale-95"
               onClick={handleClose}
               disabled={updateStatusMutation.isPending}
             >
-              Cancel
+              Abort
             </button>
             <button
-              className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-400"
+              className="flex-[2] px-8 py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl shadow-blue-900/20 hover:bg-blue-500 transition-all uppercase tracking-widest text-[11px] disabled:opacity-50 active:scale-95"
               onClick={handleSubmit}
-              disabled={
-                updateStatusMutation.isPending ||
-                !selectedWard ||
-                selectedStatus === null
-              }
+              disabled={updateStatusMutation.isPending || !selectedWard || selectedStatus === null}
             >
-              {updateStatusMutation.isPending ? "Updating..." : "Update Status"}
+              {updateStatusMutation.isPending ? "Connecting..." : "Confirm Update"}
             </button>
           </div>
         </div>
@@ -317,47 +292,41 @@ export default function StatusChangeModal({
 
       {/* Confirmation Dialog */}
       {showConfirmation && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-60">
-          <div className="bg-white text-black rounded-lg p-6 w-96 shadow-lg">
-            <h3 className="text-lg font-bold mb-4">Confirm Status Change</h3>
-            <div className="mb-4">
-              <p>
-                <strong>Ward:</strong> {getSelectedWardDisplayName()}
-              </p>
-              <p>
-                <strong>Zone:</strong> {wardZone}
-              </p>
-              <p>
-                <strong>Current Status:</strong> {currentStatus}
-              </p>
-              <p>
-                <strong>New Status:</strong>{" "}
-                {
-                  statuses.find((s: any) => s.wardStatusId === selectedStatus)
-                    ?.statusName
-                }
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-6 bg-slate-950/90 backdrop-blur-xl">
+          <div className="bg-[#161B26] border border-slate-800 w-full max-w-sm rounded-[2.5rem] shadow-2xl p-10 text-center space-y-8 animate-in fade-in zoom-in duration-300">
+            <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center mx-auto shadow-sm">
+               <AlertTriangle className="w-10 h-10" />
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-2xl font-black text-white tracking-tight uppercase">Confirm Change?</h3>
+              <div className="space-y-2 text-left bg-slate-800/40 p-5 rounded-2xl border border-slate-800/50">
+                 <div className="flex justify-between items-center text-[10px] uppercase font-black tracking-widest">
+                    <span className="text-slate-500">Identity</span>
+                    <span className="text-blue-400">{getSelectedWardDisplayName()}</span>
+                 </div>
+                 <div className="flex justify-between items-center text-[10px] uppercase font-black tracking-widest pt-2 border-t border-slate-700/50">
+                    <span className="text-slate-500">Transition</span>
+                    <span className="text-emerald-400">{statuses.find((s: any) => s.wardStatusId === selectedStatus)?.statusName}</span>
+                 </div>
+              </div>
+              <p className="text-slate-400 text-xs font-medium italic">
+                State transition for this topological unit will affect all child records and survey workflows.
               </p>
             </div>
-            <p className="mb-6 text-gray-600">
-              Are you sure you want to change the ward status? This action
-              cannot be undone.
-            </p>
-            <div className="flex justify-end gap-4">
+            <div className="flex gap-4">
               <button
-                className="px-4 py-2 rounded bg-gray-300 hover:bg-gray-400"
+                className="flex-1 px-6 py-4 bg-slate-800 text-slate-300 font-black rounded-2xl hover:bg-slate-700 transition-all uppercase tracking-widest text-[10px]"
                 onClick={() => setShowConfirmation(false)}
                 disabled={updateStatusMutation.isPending}
               >
-                Cancel
+                Go Back
               </button>
               <button
-                className="px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 disabled:bg-red-400"
+                className="flex-[2] px-6 py-4 bg-red-600 text-white font-black rounded-2xl shadow-xl shadow-red-900/20 hover:bg-red-500 transition-all uppercase tracking-widest text-[10px] disabled:opacity-50"
                 onClick={confirmSubmit}
                 disabled={updateStatusMutation.isPending}
               >
-                {updateStatusMutation.isPending
-                  ? "Updating..."
-                  : "Confirm Change"}
+                {updateStatusMutation.isPending ? "Syncing..." : "Confirm"}
               </button>
             </div>
           </div>

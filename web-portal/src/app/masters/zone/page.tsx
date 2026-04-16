@@ -8,6 +8,18 @@ import Loading from "@/components/ui/loading";
 import toast from "react-hot-toast";
 import { useAuth } from "@/features/auth/AuthContext";
 import { getUserRoleRank, ROLE_RANK } from "@/lib/api";
+import { 
+  Plus, 
+  Search, 
+  Map, 
+  Edit3, 
+  Trash2, 
+  ChevronUp, 
+  ChevronDown, 
+  MoreHorizontal,
+  XCircle,
+  Database
+} from "lucide-react";
 
 export default function ZoneMasterPage() {
   const { user } = useAuth();
@@ -29,17 +41,14 @@ export default function ZoneMasterPage() {
   });
 
   useEffect(() => {
-    // Simulate loading time for consistency
     const timer = setTimeout(() => {
       setLoading(false);
     }, 500);
     return () => clearTimeout(timer);
   }, []);
 
-  // Check if current user can edit masters
   const canEditMasters = user && getUserRoleRank(user) >= ROLE_RANK.ADMIN;
 
-  // Fetch zones for selected ULB
   const {
     data: zones,
     isLoading: zonesLoading,
@@ -50,7 +59,6 @@ export default function ZoneMasterPage() {
     enabled: !!selectedUlb,
   });
 
-  // Update Zone mutation
   const updateZoneMutation = useMutation({
     mutationFn: (data: any) => masterDataApi.updateZone(selectedZone.zoneId, data),
     onSuccess: () => {
@@ -63,12 +71,11 @@ export default function ZoneMasterPage() {
     },
   });
 
-  // Delete Zone mutation
   const deleteZoneMutation = useMutation({
     mutationFn: (zoneId: string) => masterDataApi.deleteZone(zoneId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["zones", selectedUlb] });
-      toast.success("Zone deleted successfully");
+      toast.success("Zone removed successfully");
       setShowDeleteConfirm(false);
     },
     onError: (error: any) => {
@@ -76,7 +83,6 @@ export default function ZoneMasterPage() {
     },
   });
 
-  // Handle sorting
   const handleSort = (key: string) => {
     let direction: "asc" | "desc" = "asc";
     if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
@@ -85,45 +91,29 @@ export default function ZoneMasterPage() {
     setSortConfig({ key, direction });
   };
 
-  // Get sorted zones
   const getSortedZones = () => {
     if (!zones || !sortConfig) return zones || [];
-    
     const sorted = [...zones];
     sorted.sort((a: any, b: any) => {
       const aValue = a[sortConfig.key];
       const bValue = b[sortConfig.key];
-      
-      // Special handling for zoneNumber - extract numeric part
       if (sortConfig.key === "zoneNumber") {
         const aNum = parseInt(String(a.zoneNumber).replace(/\D/g, '')) || 0;
         const bNum = parseInt(String(b.zoneNumber).replace(/\D/g, '')) || 0;
         return sortConfig.direction === "asc" ? aNum - bNum : bNum - aNum;
       }
-      
-      if (typeof aValue === "number" && typeof bValue === "number") {
-        return sortConfig.direction === "asc" ? aValue - bValue : bValue - aValue;
-      }
-      
-      if (typeof aValue === "string" && typeof bValue === "string") {
-        return sortConfig.direction === "asc" 
-          ? aValue.localeCompare(bValue) 
-          : bValue.localeCompare(aValue);
-      }
-      
-      return 0;
+      return sortConfig.direction === "asc" 
+        ? String(aValue).localeCompare(String(bValue)) 
+        : String(bValue).localeCompare(String(aValue));
     });
-    
     return sorted;
   };
 
-  // Get sort icon
   const getSortIcon = (columnKey: string) => {
-    if (!sortConfig || sortConfig.key !== columnKey) return "↕️";
-    return sortConfig.direction === "asc" ? "↑" : "↓";
+    if (!sortConfig || sortConfig.key !== columnKey) return <MoreHorizontal className="w-3 h-3 text-slate-600" />;
+    return sortConfig.direction === "asc" ? <ChevronUp className="w-3 h-3 text-blue-400" /> : <ChevronDown className="w-3 h-3 text-blue-400" />;
   };
 
-  // Handle edit click
   const handleEditClick = (zone: any) => {
     setSelectedZone(zone);
     setEditFormData({
@@ -135,13 +125,11 @@ export default function ZoneMasterPage() {
     setShowEditModal(true);
   };
 
-  // Handle update
   const handleUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     updateZoneMutation.mutate(editFormData);
   };
 
-  // Handle delete
   const handleDelete = () => {
     if (selectedZone) {
       deleteZoneMutation.mutate(selectedZone.zoneId);
@@ -154,290 +142,210 @@ export default function ZoneMasterPage() {
 
   return (
     <MainLayout>
-      <div className="bg-gray-900 min-h-screen text-white">
-        <h1 className="text-2xl font-bold mb-4">Zone Master</h1>
-        <div className="mb-4">
-          <ULBSelector value={selectedUlb} onChange={setSelectedUlb} />
-        </div>
-        <div>
-          {zonesLoading && (
-            <div className="text-gray-400">Loading zones...</div>
+      <div className="min-h-screen bg-[#0B0F19] p-4 md:p-8">
+        <div className="max-w-8xl mx-auto space-y-8">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-slate-800/50 pb-8">
+            <div>
+              <h1 className="text-3xl font-black text-white tracking-tight">Zone Master</h1>
+              <p className="text-slate-500 text-sm font-medium mt-1">Configure geographic zones within URBs</p>
+            </div>
+            {canEditMasters && selectedUlb && (
+              <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl text-sm font-bold transition-all shadow-xl shadow-blue-900/20 active:scale-95">
+                <Plus className="w-4 h-4" />
+                Initialize Zone
+              </button>
+            )}
+          </div>
+
+          {/* ULB Selector Area */}
+          <div className="bg-[#161B26] border border-slate-800 rounded-3xl p-6 shadow-sm">
+             <div className="max-w-md">
+                <ULBSelector value={selectedUlb} onChange={setSelectedUlb} isDark />
+             </div>
+          </div>
+
+          {selectedUlb && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Search & Meta */}
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1 group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 group-focus-within:text-blue-400 transition-colors" />
+                  <input 
+                    type="text" 
+                    placeholder="Search zones..." 
+                    className="w-full bg-[#161B26] border border-slate-800 rounded-2xl py-3.5 pl-12 pr-4 text-sm text-slate-200 focus:outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-medium"
+                  />
+                </div>
+                <div className="bg-[#161B26] border border-slate-800 rounded-2xl px-6 py-3.5 flex items-center gap-4">
+                   <Map className="w-4 h-4 text-blue-400" />
+                   <span className="text-sm font-black text-slate-300">Count: {zones?.length || 0}</span>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="bg-[#161B26] border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-800/20 border-b border-slate-800 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">
+                        <th className="px-8 py-6 cursor-pointer hover:bg-slate-800/30 transition-colors" onClick={() => handleSort("zoneNumber")}>
+                          <div className="flex items-center gap-2">Number {getSortIcon("zoneNumber")}</div>
+                        </th>
+                        <th className="px-8 py-6 cursor-pointer hover:bg-slate-800/30 transition-colors" onClick={() => handleSort("zoneName")}>
+                          <div className="flex items-center gap-2">Zone Identity {getSortIcon("zoneName")}</div>
+                        </th>
+                        <th className="px-8 py-6">Description</th>
+                        <th className="px-8 py-6">Status</th>
+                        <th className="px-8 py-6 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/50">
+                      {getSortedZones().length > 0 ? (
+                        getSortedZones().map((zone: any) => (
+                          <tr key={zone.zoneId} className="hover:bg-blue-500/[0.02] transition-colors group">
+                            <td className="px-8 py-6">
+                              <span className="text-blue-400 font-mono font-black text-xs px-3 py-1 bg-blue-400/5 rounded-full border border-blue-400/10">#{zone.zoneNumber}</span>
+                            </td>
+                            <td className="px-8 py-6">
+                              <span className="text-slate-200 font-black text-sm uppercase tracking-tight">{zone.zoneName}</span>
+                            </td>
+                            <td className="px-8 py-6">
+                              <span className="text-slate-500 text-[10px] font-bold italic truncate max-w-[200px] block">{zone.description || "Administrative Cluster"}</span>
+                            </td>
+                            <td className="px-8 py-6">
+                              {zone.isActive ? (
+                                <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-black uppercase tracking-widest italic px-3 py-1 bg-emerald-400/5 rounded-full border border-emerald-400/10 w-max">
+                                  <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                                  Active
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 text-slate-500 text-[10px] font-black uppercase tracking-widest italic px-3 py-1 bg-slate-500/5 rounded-full border border-slate-500/10 w-max">
+                                  <div className="w-1.5 h-1.5 bg-slate-600 rounded-full"></div>
+                                  Inactive
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-8 py-6 text-right">
+                              <div className="flex items-center justify-end gap-3">
+                                <button
+                                  onClick={() => handleEditClick(zone)}
+                                  className="p-2 rounded-xl text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 transition-all"
+                                  disabled={!canEditMasters}
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedZone(zone);
+                                    setShowDeleteConfirm(true);
+                                  }}
+                                  className="p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
+                                  disabled={!canEditMasters}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="px-8 py-20 text-center">
+                             <div className="flex flex-col items-center justify-center opacity-20">
+                                <Database className="w-12 h-12 mb-4" />
+                                <p className="text-xs font-black uppercase tracking-widest italic leading-none">No zone clusters detected</p>
+                             </div>
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           )}
-          {zonesError && (
-            <div className="text-red-400">Error loading zones</div>
-          )}
-          {!zonesLoading && !zonesError && (
-            <table className="w-full bg-gray-800 rounded-lg overflow-hidden text-sm">
-              <thead>
-                <tr>
-                  <th 
-                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-700"
-                    onClick={() => handleSort("zoneNumber")}
-                  >
-                    Zone Number {getSortIcon("zoneNumber")}
-                  </th>
-                  <th 
-                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-700"
-                    onClick={() => handleSort("zoneName")}
-                  >
-                    Zone Name {getSortIcon("zoneName")}
-                  </th>
-                  <th 
-                    className="px-4 py-2 text-left cursor-pointer hover:bg-gray-700"
-                  >
-                    Description
-                  </th>
-                  <th className="px-4 py-2 text-left">Active</th>
-                  <th className="px-4 py-2 text-left">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getSortedZones().length > 0 ? (
-                  getSortedZones().map((zone: any) => (
-                    <tr key={zone.zoneId} className="border-b border-gray-700">
-                      <td className="px-4 py-2">{zone.zoneNumber}</td>
-                      <td className="px-4 py-2">{zone.zoneName}</td>
-                      <td className="px-4 py-2">{zone.description}</td>
-                      <td className="px-4 py-2">
-                        {zone.isActive ? "Yes" : "No"}
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex items-center space-x-2">
-                          {/* Edit Button */}
-                          <button
-                            onClick={() => handleEditClick(zone)}
-                            disabled={!canEditMasters}
-                            className={`p-2 rounded-lg transition ${
-                              canEditMasters
-                                ? "text-blue-400 hover:bg-blue-900"
-                                : "text-gray-600 cursor-not-allowed"
-                            }`}
-                            title={!canEditMasters ? "Only ADMIN or SUPERADMIN can edit" : "Edit Zone"}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </button>
-                          
-                          {/* Delete Button */}
-                          <button
-                            onClick={() => {
-                              setSelectedZone(zone);
-                              setShowDeleteConfirm(true);
-                            }}
-                            disabled={!canEditMasters}
-                            className={`p-2 rounded-lg transition ${
-                              canEditMasters
-                                ? "text-red-400 hover:bg-red-900"
-                                : "text-gray-600 cursor-not-allowed"
-                            }`}
-                            title={!canEditMasters ? "Only ADMIN or SUPERADMIN can delete" : "Delete Zone"}
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="px-4 py-4 text-center text-gray-400"
-                    >
-                      {selectedUlb
-                        ? "No zones found for this ULB."
-                        : "Select a ULB to view zones."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+
+          {!selectedUlb && !zonesLoading && (
+            <div className="bg-[#161B26] border border-slate-800 rounded-[2rem] p-20 text-center shadow-xl">
+               <div className="max-w-xs mx-auto space-y-4">
+                  <div className="w-20 h-20 bg-blue-600/10 rounded-3xl flex items-center justify-center mx-auto text-blue-400">
+                     <Search className="w-10 h-10" />
+                  </div>
+                  <h3 className="text-xl font-black text-white tracking-tight uppercase">Registry Awaiting</h3>
+                  <p className="text-slate-500 text-sm font-medium italic">Select an Urban Local Body to access regional zone configurations</p>
+               </div>
+            </div>
           )}
         </div>
 
-        {/* Edit Zone Modal */}
-        {showEditModal && selectedZone && (
-          <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="relative mx-auto max-w-lg shadow-2xl rounded-2xl bg-gradient-to-br from-white via-gray-50 to-gray-100 border border-gray-200 w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="text-center mb-4">
-                  <div className="mx-auto flex items-center justify-center h-14 w-14 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 mb-3 shadow-lg transform transition-transform hover:scale-110">
-                    <svg className="h-7 w-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">Edit Zone</h3>
-                </div>
-                <form onSubmit={handleUpdate} className="space-y-3">
-                  <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      <span className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 6h14a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z" />
-                        </svg>
-                        Zone Number
-                      </span>
-                    </label>
+        {/* Edit Modal */}
+        {showEditModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+            <div className="bg-[#161B26] border border-slate-800 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+              <div className="p-10 border-b border-slate-800 flex items-center justify-between">
+                 <h3 className="text-2xl font-black text-white tracking-tight">Modify Zone</h3>
+                 <button onClick={() => setShowEditModal(false)} className="text-slate-500 hover:text-white transition-colors">
+                   <XCircle className="w-6 h-6" />
+                 </button>
+              </div>
+              <form onSubmit={handleUpdate} className="p-10 space-y-8">
+                <div className="grid grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Zone Number</label>
                     <input
                       type="text"
                       value={editFormData.zoneNumber}
                       onChange={(e) => setEditFormData({ ...editFormData, zoneNumber: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white"
-                      placeholder="Enter zone number"
+                      className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 text-sm text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
                       required
                     />
                   </div>
-                  <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      <span className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024-.195 1.414-.586l7-7a2 2 0 000-2.828l-7-7a2 2 0 00-2.828 0l-7 7a1.994 1.994 0 00-1.414.586L3 12c0 .512.195 1.024.586 1.414l7 7c.39.39.902.586 1.414.586h5c.512 0 1.024-.195 1.414-.586l7-7a2 2 0 000-2.828l-7-7a2 2 0 00-2.828 0L7 7z" />
-                        </svg>
-                        Zone Name
-                      </span>
-                    </label>
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Zone Name</label>
                     <input
                       type="text"
                       value={editFormData.zoneName}
                       onChange={(e) => setEditFormData({ ...editFormData, zoneName: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white"
-                      placeholder="Enter zone name"
+                      className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 text-sm text-slate-200 font-bold outline-none focus:ring-4 focus:ring-blue-500/10 transition-all"
                       required
                     />
                   </div>
-                  <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      <span className="flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        Description
-                      </span>
-                    </label>
-                    <textarea
-                      value={editFormData.description}
-                      onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                      className="w-full px-3 py-2 border-2 border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all duration-200 text-gray-900 text-sm font-medium placeholder-gray-400 bg-gradient-to-r from-gray-50 to-white resize-none"
-                      rows={3}
-                      placeholder="Enter zone description (optional)"
-                    />
-                  </div>
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-3 shadow-sm border border-blue-100">
-                    <label className="flex items-center cursor-pointer group">
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          checked={editFormData.isActive}
-                          onChange={(e) => setEditFormData({ ...editFormData, isActive: e.target.checked })}
-                          className="sr-only"
-                        />
-                        <div className={`block w-12 h-6 rounded-full transition-colors duration-200 ${editFormData.isActive ? 'bg-gradient-to-r from-green-400 to-green-500' : 'bg-gray-300'}`}></div>
-                        <div className={`absolute left-0.5 top-0.5 bg-white w-5 h-5 rounded-full transition-transform duration-200 flex items-center justify-center shadow-md ${editFormData.isActive ? 'transform translate-x-6' : ''}`}>
-                          {editFormData.isActive ? (
-                            <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-                      <div className="ml-3">
-                        <span className="text-xs font-bold text-gray-700 group-hover:text-blue-600 transition-colors">
-                          {editFormData.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                  <div className="flex justify-end gap-2 pt-3 border-t border-gray-200">
-                    <button
-                      type="button"
-                      onClick={() => setShowEditModal(false)}
-                      className="px-4 py-2 text-gray-700 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg hover:from-gray-200 hover:to-gray-300 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 text-sm"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={updateZoneMutation.isPending}
-                      className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 disabled:from-blue-300 disabled:to-indigo-400 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center gap-1.5 text-sm"
-                    >
-                      {updateZoneMutation.isPending ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Updating...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Update Zone
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 italic">Description</label>
+                  <textarea
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    className="w-full bg-slate-800/40 border border-slate-700/50 rounded-2xl px-6 py-4 text-sm text-slate-200 font-bold outline-none resize-none min-h-[120px] focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 px-8 py-5 bg-slate-800 text-slate-300 font-black rounded-3xl hover:bg-slate-700 transition-all uppercase tracking-widest text-[11px]">Cancel</button>
+                  <button type="submit" disabled={updateZoneMutation.isPending} className="flex-[2] px-8 py-5 bg-blue-600 text-white font-black rounded-3xl shadow-xl hover:bg-blue-500 transition-all uppercase tracking-widest text-[11px]">
+                    {updateZoneMutation.isPending ? "Updating..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm && selectedZone && (
-          <div className="fixed inset-0 bg-gradient-to-br from-red-900 via-gray-800 to-gray-900 bg-opacity-75 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-            <div className="relative mx-auto max-w-md shadow-2xl rounded-2xl bg-gradient-to-br from-white via-red-50 to-white border border-red-200 w-full">
-              <div className="p-6 text-center">
-                <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-gradient-to-br from-red-400 to-red-600 mb-4 shadow-lg transform transition-transform hover:scale-110">
-                  <svg className="h-8 w-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent mb-2">Delete Zone</h3>
-                <p className="text-gray-600 mb-5 leading-relaxed text-sm">
-                  Are you sure you want to delete <strong className="text-red-600">{selectedZone.zoneName}</strong> ? 
-                  <span className="block mt-1.5 text-xs text-gray-500">This action cannot be undone and all associated data may be affected.</span>
-                </p>
-                <div className="flex justify-center gap-2">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    disabled={deleteZoneMutation.isPending}
-                    className="px-4 py-2 text-gray-700 bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg hover:from-gray-200 hover:to-gray-300 font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5 disabled:opacity-50 text-sm"
-                  >
-                    Cancel
+        {/* Delete Confirm */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-slate-950/80 backdrop-blur-md">
+            <div className="bg-[#161B26] border border-slate-800 w-full max-w-md rounded-[2.5rem] shadow-2xl p-10 text-center animate-in fade-in zoom-in duration-300">
+               <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                  <Trash2 className="w-10 h-10" />
+               </div>
+               <h3 className="text-2xl font-black text-white tracking-tight uppercase mb-2">Excise Region?</h3>
+               <p className="text-slate-400 font-medium italic mb-8">Permanently remove <span className="text-red-400 font-black">"{selectedZone?.zoneName}"</span> from registry?</p>
+               <div className="flex gap-4">
+                  <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-6 py-4 bg-slate-800 text-slate-300 font-black rounded-2xl hover:bg-slate-700 transition-all uppercase tracking-widest text-[10px]">Abort</button>
+                  <button onClick={handleDelete} disabled={deleteZoneMutation.isPending} className="flex-1 px-6 py-4 bg-red-600 text-white font-black rounded-2xl shadow-xl hover:bg-red-500 transition-all uppercase tracking-widest text-[10px]">
+                    {deleteZoneMutation.isPending ? "Removing..." : "Confirm"}
                   </button>
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleteZoneMutation.isPending}
-                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 disabled:from-red-300 disabled:to-red-400 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none flex items-center gap-1.5 text-sm"
-                  >
-                    {deleteZoneMutation.isPending ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Delete Zone
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
+               </div>
             </div>
           </div>
         )}

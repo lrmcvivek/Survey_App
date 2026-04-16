@@ -1,5 +1,4 @@
 "use client";
-
 import React, { useState, useEffect } from "react";
 import ProtectedRoute from "@/features/auth/ProtectedRoute";
 import { userApi, authApi, User, RegisterRequest, canManageUser, getUserRoleRank, ROLE_RANK } from "@/lib/api";
@@ -7,6 +6,26 @@ import toast from "react-hot-toast";
 import { useAuth } from "@/features/auth/AuthContext";
 import MainLayout from "@/components/layout/MainLayout";
 import Loading from "@/components/ui/loading";
+import { 
+  Users, 
+  UserPlus, 
+  Search, 
+  RefreshCw, 
+  Shield, 
+  ShieldCheck, 
+  ShieldAlert, 
+  MoreVertical,
+  Settings,
+  Lock,
+  Unlock,
+  Trash2,
+  X,
+  ChevronDown,
+  CheckSquare,
+  Square,
+  Activity,
+  UserCheck
+} from "lucide-react";
 
 const UserManagementPage: React.FC = () => {
   const { user: currentUser } = useAuth();
@@ -54,125 +73,43 @@ const UserManagementPage: React.FC = () => {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Form validation
-    if (!formData.username || formData.username.length < 3) {
-      toast.error("Username must be at least 3 characters long");
-      return;
-    }
-
-    if (!formData.name || formData.name.length < 3) {
-      toast.error("Name must be at least 3 characters long");
-      return;
-    }
-
-    if (!formData.password || formData.password.length < 8) {
-      toast.error("Password must be at least 8 characters long");
-      return;
-    }
-
-    if (!formData.mobileNumber || formData.mobileNumber.length !== 10) {
-      toast.error("Mobile number must be exactly 10 digits");
-      return;
-    }
-
-    if (!formData.role) {
-      toast.error("Please select a role");
-      return;
-    }
+    if (!formData.username || formData.username.length < 3) { toast.error("Username must be at least 3 characters long"); return; }
+    if (!formData.name || formData.name.length < 3) { toast.error("Name must be at least 3 characters long"); return; }
+    if (!formData.password || formData.password.length < 8) { toast.error("Password must be at least 8 characters long"); return; }
+    if (!formData.mobileNumber || formData.mobileNumber.length !== 10) { toast.error("Mobile number must be exactly 10 digits"); return; }
+    if (!formData.role) { toast.error("Please select a role"); return; }
 
     setCreatingUser(true);
     try {
-      // Prepare the data according to RegisterRequest interface
       const userData: RegisterRequest = {
         name: formData.name,
         username: formData.username,
         password: formData.password,
-        role: formData.role as
-          | "SUPERADMIN"
-          | "ADMIN"
-          | "SUPERVISOR"
-          | "SURVEYOR",
+        role: formData.role as "SUPERADMIN" | "ADMIN" | "SUPERVISOR" | "SURVEYOR",
         mobileNumber: formData.mobileNumber,
       };
-
       await authApi.register(userData);
       toast.success("User created successfully");
       setShowCreateModal(false);
-      setFormData({
-        username: "",
-        name: "",
-        password: "",
-        role: "ADMIN",
-        mobileNumber: "",
-        status: "ACTIVE",
-      });
+      setFormData({ username: "", name: "", password: "", role: "ADMIN", mobileNumber: "", status: "ACTIVE" });
       fetchUsers();
     } catch (error: any) {
-      const errorMessage =
-        error.response?.data?.error || error.message || "Failed to create user";
-      toast.error(errorMessage);
+      toast.error(error.response?.data?.error || error.message || "Failed to create user");
     } finally {
       setCreatingUser(false);
     }
   };
 
-  const handleEditUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedUser) return;
-
-    // Input validation
-    if (!formData.name || formData.name.length < 3) {
-      toast.error("Name must be at least 3 characters long");
-      return;
-    }
-    if (!formData.mobileNumber || formData.mobileNumber.length !== 10) {
-      toast.error("Mobile number must be exactly 10 digits");
-      return;
-    }
-    if (formData.password && formData.password.length < 8) {
-      toast.error("Password must be at least 8 characters long");
-      return;
-    }
-
-    // Check role change permission
-    const currentRoleRank = ROLE_RANK[selectedUser.role || selectedUser.userRoleMaps?.[0]?.role?.roleName || ""] || 0;
-    const newRoleRank = ROLE_RANK[formData.role] || 0;
-    
-    if (currentUser && newRoleRank >= currentUserRank(currentUser)) {
-      toast.error(`Cannot assign ${formData.role} role. You can only assign roles lower than your own.`);
-      return;
-    }
-
-    // Show Update Confirmation modal before updating
-    setShowUpdateConfirm(true);
-  };
-
   const executeUpdate = async () => {
     if (!selectedUser || !currentUser) return;
-    
-    const currentRoleRank = ROLE_RANK[selectedUser.role || selectedUser.userRoleMaps?.[0]?.role?.roleName || ""] || 0;
-    const newRoleRank = ROLE_RANK[formData.role] || 0;
-    
     try {
       const updatePayload: any = { userId: selectedUser.userId };
       const roleChanged = formData.role !== (selectedUser.role || selectedUser.userRoleMaps?.[0]?.role?.roleName);
-      if (formData.name && formData.name !== (selectedUser.name || "")) {
-        updatePayload.name = formData.name;
-      }
-      if (
-        formData.mobileNumber &&
-        formData.mobileNumber !== (selectedUser.mobileNumber || "")
-      ) {
-        updatePayload.mobileNumber = formData.mobileNumber;
-      }
-      if (formData.password) {
-        updatePayload.password = formData.password;
-      }
+      if (formData.name && formData.name !== (selectedUser.name || "")) updatePayload.name = formData.name;
+      if (formData.mobileNumber && formData.mobileNumber !== (selectedUser.mobileNumber || "")) updatePayload.mobileNumber = formData.mobileNumber;
+      if (formData.password) updatePayload.password = formData.password;
       
-      // Handle role change
-      if (roleChanged && currentUser && getUserRoleRank(currentUser) > newRoleRank) {
-        // Use assignRole API to change the role
+      if (roleChanged && currentUser && getUserRoleRank(currentUser) > (ROLE_RANK[formData.role] || 0)) {
         await authApi.assignRole({
           userId: selectedUser.userId,
           role: formData.role as "SUPERADMIN" | "ADMIN" | "SUPERVISOR" | "SURVEYOR",
@@ -180,781 +117,405 @@ const UserManagementPage: React.FC = () => {
         });
       }
       
-      // Only send update if something actually changed (excluding role which is handled separately)
-      if (
-        !updatePayload.name &&
-        !updatePayload.mobileNumber &&
-        !updatePayload.password &&
-        !roleChanged
-      ) {
-        toast("No changes detected.");
-        return;
-      }
-      
-      // Update user name, mobile number, and/or password (if there are changes)
       if (updatePayload.name || updatePayload.mobileNumber || updatePayload.password) {
-        const updateRes = await userApi.updateUser(updatePayload);
-        if (updateRes?.error) throw new Error(updateRes.error);
+        await userApi.updateUser(updatePayload);
       }
 
-      await fetchUsers(); // Ensure UI is updated before closing modal
+      await fetchUsers();
       toast.success("User updated successfully");
       setShowEditModal(false);
       setShowEditConfirm(false);
+      setShowUpdateConfirm(false);
       setSelectedUser(null);
       setUserToEdit(null);
-      setFormData({
-        username: "",
-        name: "",
-        password: "",
-        role: "ADMIN",
-        mobileNumber: "",
-        status: "ACTIVE",
-      });
+      setFormData({ username: "", name: "", password: "", role: "ADMIN", mobileNumber: "", status: "ACTIVE" });
     } catch (error: any) {
-      let errorMessage =
-        error?.response?.data?.error ||
-        error?.message ||
-        "Failed to update user";
-      toast.error(errorMessage);
-      // Do NOT close modals or reset form here, so user can try again
+      toast.error(error?.response?.data?.error || error?.message || "Failed to update user");
     }
   };
 
-  // Helper to get current user rank
-  const currentUserRank = (user: typeof currentUser) => {
-    if (!user) return 0;
-    return getUserRoleRank(user);
-  };
-
-  const handleDeleteUser = async (userId: string) => {
+  const handleDeactivate = async () => {
+    if (!userToDeactivate) return;
     try {
-      await userApi.deleteUser({ userId, hardDelete: true });
-      toast.success("User deleted successfully");
+      await userApi.updateUserStatus({ userId: userToDeactivate.userId, isActive: !userToDeactivate.isActive });
+      toast.success(`User ${userToDeactivate.isActive ? "suspension" : "restoration"} complete`);
+      setShowDeactivateConfirm(false);
+      setUserToDeactivate(null);
       fetchUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to delete user");
+      toast.error("Status update failure");
     }
   };
 
-  const handleDeactivateUser = async (user: User) => {
+  const handleDelete = async () => {
+    if (!userToDelete) return;
     try {
-      await userApi.updateUserStatus({
-        userId: user.userId,
-        isActive: !user.isActive,
-      });
-      toast.success(`User ${user.isActive ? "deactivated" : "activated"} successfully`);
+      await userApi.deleteUser({ userId: userToDelete, hardDelete: true });
+      toast.success("User terminated successfully");
+      setShowDeleteConfirm(false);
+      setUserToDelete(null);
       fetchUsers();
     } catch (error: any) {
-      toast.error(error.response?.data?.error || "Failed to update user status");
+      toast.error("Termination failed");
     }
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.name?.toLowerCase() || "").includes(searchTerm.toLowerCase());
-    const userRole = user.role || user.userRoleMaps?.[0]?.role?.roleName || "";
-    const matchesRole = !selectedRole || userRole === selectedRole;
+  const sortedUsers = users.filter((user) => {
+    const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase()) || (user.name?.toLowerCase() || "").includes(searchTerm.toLowerCase());
+    const role = user.role || user.userRoleMaps?.[0]?.role?.roleName || "";
+    const matchesRole = !selectedRole || role === selectedRole;
     return matchesSearch && matchesRole;
+  }).sort((a, b) => {
+    const rankA = ROLE_RANK[a.role || a.userRoleMaps?.[0]?.role?.roleName || ""] || 0;
+    const rankB = ROLE_RANK[b.role || b.userRoleMaps?.[0]?.role?.roleName || ""] || 0;
+    if (rankA !== rankB) return rankB - rankA;
+    return (a.name || a.username).localeCompare(b.name || b.username);
   });
 
-  // Sort users by role hierarchy (highest to lowest), then by name
-  const sortedUsers = [...filteredUsers].sort((a, b) => {
-    const roleA = a.role || a.userRoleMaps?.[0]?.role?.roleName || "";
-    const roleB = b.role || b.userRoleMaps?.[0]?.role?.roleName || "";
-    const rankA = ROLE_RANK[roleA] || 0;
-    const rankB = ROLE_RANK[roleB] || 0;
-    
-    // First sort by role rank (descending)
-    if (rankA !== rankB) {
-      return rankB - rankA;
-    }
-    
-    // Then sort by name (ascending)
-    const nameA = a.name || a.username;
-    const nameB = b.name || b.username;
-    return nameA.localeCompare(nameB);
-  });
-
-  if (loading) {
-    return (
-      <ProtectedRoute requireWebPortalAccess>
-        <Loading fullScreen />
-      </ProtectedRoute>
-    );
-  }
+  if (loading) return <ProtectedRoute requireWebPortalAccess><Loading fullScreen /></ProtectedRoute>;
 
   return (
     <ProtectedRoute requireWebPortalAccess>
       <MainLayout>
-        <div className="p-6">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-white-900">
-              User Management
-            </h1>
-          </div>
-
-          {/* Controls */}
-          <div className="mb-6 flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search users..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-black text-white"
-              />
+        <div className="min-h-screen bg-[#0B0F19] md:p-8">
+          <div className="max-w-[1600px] mx-auto space-y-10">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-slate-800/50 pb-8">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-400">
+                      <ShieldCheck className="w-6 h-6" />
+                   </div>
+                   <h1 className="text-3xl font-black text-white tracking-tight uppercase italic">User Directory</h1>
+                </div>
+                <p className="text-slate-500 text-sm font-medium italic">Manage system access protocols and administrative hierarchies</p>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  disabled={!currentUser || getUserRoleRank(currentUser) < ROLE_RANK.ADMIN}
+                  className="flex items-center gap-2 px-6 py-4 bg-blue-600 text-white font-black rounded-2xl shadow-xl shadow-blue-900/30 hover:bg-blue-500 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-widest text-[10px]"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  Register User
+                </button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <select
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-              >
-                <option value="">All Roles</option>
-                <option value="SUPERADMIN">Super Admin</option>
-                <option value="ADMIN">Admin</option>
-                <option value="SUPERVISOR">Supervisor</option>
-                <option value="SURVEYOR">Surveyor</option>
-                <option value="VIEWER">Viewer</option>
-              </select>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                disabled={!currentUser || getUserRoleRank(currentUser) < ROLE_RANK.ADMIN}
-                className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  !currentUser || getUserRoleRank(currentUser) < ROLE_RANK.ADMIN
-                    ? "bg-gray-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
-                title={!currentUser || getUserRoleRank(currentUser) < ROLE_RANK.ADMIN ? "Only Admin can create users" : "Add user"}
-              >
-                Add User
-              </button>
-            </div>
-          </div>
 
-          {/* Users Table */}
-          <div className="bg-white shadow-md rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    User
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedUsers.map((user) => {
-                  const userRole =
-                    user.role ||
-                    user.userRoleMaps?.[0]?.role?.roleName ||
-                    "N/A";
-                  return (
-                    <tr key={user.userId} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.name || user.username}
-                        </div>
-                        <div className="text-sm text-gray-500">
-                          {user.username}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            userRole === "SUPERADMIN"
-                              ? "bg-purple-100 text-purple-800"
-                              : userRole === "ADMIN"
-                              ? "bg-blue-100 text-blue-800"
-                              : userRole === "SUPERVISOR"
-                              ? "bg-orange-100 text-orange-800"
-                              : userRole === "SURVEYOR"
-                              ? "bg-green-100 text-green-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {userRole}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            user.isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {user.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        {(() => {
-                          const canManage = currentUser && canManageUser(currentUser, user);
-                          const userRoleName = user.role || user.userRoleMaps?.[0]?.role?.roleName || "";
-                          
-                          return (
-                            <div className="flex items-center space-x-2">
-                              {/* Edit Button */}
-                              <button
-                                onClick={() => {
-                                  setUserToEdit(user);
-                                  setShowEditConfirm(true);
-                                }}
-                                disabled={!canManage}
-                                className={`p-2 rounded-lg transition ${
-                                  canManage
-                                    ? "text-blue-600 hover:bg-blue-50"
-                                    : "text-gray-300 cursor-not-allowed"
-                                }`}
-                                title={!canManage ? `Cannot edit users with ${userRoleName} role or higher` : "Edit user"}
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                              </button>
-                              
-                              {/* Delete Button */}
-                              <button
-                                onClick={() => {
-                                  setUserToDelete(user.userId);
-                                  setShowDeleteConfirm(true);
-                                }}
-                                disabled={!canManage}
-                                className={`p-2 rounded-lg transition ${
-                                  canManage
-                                    ? "text-red-600 hover:bg-red-50"
-                                    : "text-gray-300 cursor-not-allowed"
-                                }`}
-                                title={!canManage ? `Cannot delete users with ${userRoleName} role or higher` : "Delete user"}
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
-                              </button>
-                              
-                              {/* Deactivate/Activate Button */}
-                              <button
-                                onClick={() => {
-                                  setUserToDeactivate(user);
-                                  setShowDeactivateConfirm(true);
-                                }}
-                                disabled={currentUser?.userId === user.userId || !canManage}
-                                className={`p-2 rounded-lg transition ${
-                                  currentUser?.userId === user.userId || !canManage
-                                    ? "text-gray-300 cursor-not-allowed"
-                                    : user.isActive
-                                    ? "text-orange-600 hover:bg-orange-50"
-                                    : "text-green-600 hover:bg-green-50"
-                                }`}
-                                title={
-                                  currentUser?.userId === user.userId
-                                    ? "Cannot deactivate your own account"
-                                    : !canManage
-                                    ? `Cannot manage users with ${userRoleName} role or higher`
-                                    : user.isActive ? "Deactivate" : "Activate"
-                                }
-                              >
-                                {user.isActive ? (
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                                  </svg>
-                                ) : (
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                )}
-                              </button>
-                            </div>
-                          );
-                        })()}
-                      </td>
+            {/* Filter Matrix */}
+            <div className="bg-[#161B26] border border-slate-800 rounded-[2.5rem] p-4 shadow-2xl flex flex-col md:flex-row gap-4 items-center">
+              <div className="relative flex-1 w-full group">
+                <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 group-focus-within:text-blue-400 transition-colors" />
+                <input
+                  placeholder="Identity Search (Name, Username)..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-900/50 border border-slate-800/50 rounded-2xl pl-12 pr-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono"
+                />
+              </div>
+              
+              <div className="relative min-w-[200px] w-full md:w-auto">
+                 <select
+                   value={selectedRole}
+                   onChange={(e) => setSelectedRole(e.target.value)}
+                   className="w-full bg-[#161B26] border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-400 outline-none focus:ring-4 focus:ring-blue-500/10 h-full appearance-none cursor-pointer uppercase tracking-widest text-[10px]"
+                 >
+                   <option value="">All Tiers</option>
+                   {["SUPERADMIN", "ADMIN", "SUPERVISOR", "SURVEYOR", "VIEWER"].map(r => <option key={r} value={r} className="bg-slate-900">{r.replace('_', ' ')}</option>)}
+                 </select>
+                 <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* User List Table */}
+            <div className="bg-[#161B26] border border-slate-800/50 rounded-[2.5rem] shadow-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-900/30">
+                      <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Identity Metadata</th>
+                      <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Authorization Tier</th>
+                      <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Security Status</th>
+                      <th className="px-8 py-6 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest italic">Protocols</th>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {sortedUsers.map((user) => {
+                      const role = user.role || user.userRoleMaps?.[0]?.role?.roleName || "N/A";
+                      const isSelf = currentUser?.userId === user.userId;
+                      const canManage = currentUser && canManageUser(currentUser, user);
+
+                      return (
+                        <tr key={user.userId} className="group hover:bg-blue-500/[0.02] transition-colors">
+                          <td className="px-4 py-2">
+                            <div className="flex items-center gap-4">
+                              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black text-lg border border-slate-700/50 ${
+                                role === "SUPERADMIN" ? "bg-indigo-500/10 text-indigo-400" :
+                                role === "ADMIN" ? "bg-blue-500/10 text-blue-400" :
+                                role === "SUPERVISOR" ? "bg-amber-500/10 text-amber-400" :
+                                "bg-slate-500/10 text-slate-400"
+                              }`}>
+                                {(user.name || user.username).charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex flex-col">
+                                 <span className="text-sm font-black text-slate-200">{user.name || user.username} {isSelf && <span className="text-[9px] px-1.5 py-0.5 bg-blue-600/20 text-blue-400 rounded-md ml-2 border border-blue-500/20">ME</span>}</span>
+                                 <span className="text-[15px] font-bold text-slate-600 font-mono tracking-tight">@{user.username}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                             <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-lg border text-[10px] font-black uppercase tracking-[0.1em] italic ${
+                                role === "SUPERADMIN" ? "bg-indigo-500/5 text-indigo-400 border-indigo-500/20" :
+                                role === "ADMIN" ? "bg-blue-500/5 text-blue-400 border-blue-500/20" :
+                                role === "SUPERVISOR" ? "bg-amber-500/5 text-amber-400 border-amber-500/20" :
+                                "bg-slate-500/5 text-slate-400 border-slate-500/20"
+                             }`}>
+                               <Shield className="w-3 h-3" />
+                               {role.replace('_', ' ')}
+                             </div>
+                          </td>
+                          <td className="px-8 py-6">
+                             <div className="flex items-center gap-3">
+                                <div className={`w-1.5 h-1.5 rounded-full ${user.isActive ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" : "bg-slate-700"}`}></div>
+                                <span className={`text-[11px] font-black uppercase tracking-widest italic ${user.isActive ? "text-emerald-400" : "text-slate-600"}`}>
+                                  {user.isActive ? "Operational" : "Suspended"}
+                                </span>
+                             </div>
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                             <div className="flex items-center justify-end gap-2">
+                                <button 
+                                  onClick={() => { setUserToEdit(user); setShowEditConfirm(true); }}
+                                  disabled={!canManage}
+                                  className={`p-3 rounded-2xl transition-all border ${canManage ? 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10' : 'text-slate-800 border-slate-800/50 cursor-not-allowed'}`}
+                                >
+                                   <Settings className="w-4 h-4" />
+                                </button>
+                                <button 
+                                  onClick={() => { setUserToDeactivate(user); setShowDeactivateConfirm(true); }}
+                                  disabled={isSelf || !canManage}
+                                  className={`p-3 rounded-2xl transition-all border ${isSelf || !canManage ? 'text-slate-800 border-slate-800/50 cursor-not-allowed' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-amber-400 hover:bg-amber-400/10'}`}
+                                >
+                                   {user.isActive ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                                </button>
+                                <button 
+                                  onClick={() => { setUserToDelete(user.userId); setShowDeleteConfirm(true); }}
+                                  disabled={isSelf || !canManage}
+                                  className={`p-3 rounded-2xl transition-all border ${isSelf || !canManage ? 'text-slate-800 border-slate-800/50 cursor-not-allowed' : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:text-red-400 hover:bg-red-400/10'}`}
+                                >
+                                   <Trash2 className="w-4 h-4" />
+                                </button>
+                             </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
-
-          {/* Create User Modal */}
-          {showCreateModal && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-              <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                <div className="mt-3">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Create New User
-                  </h3>
-                  <form onSubmit={handleCreateUser} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Username
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter username"
-                        value={formData.username}
-                        onChange={(e) =>
-                          setFormData({ ...formData, username: e.target.value })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Name
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter name"
-                        value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Password
-                      </label>
-                      <input
-                        type="password"
-                        placeholder="Enter password"
-                        required
-                        value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Role
-                      </label>
-                      <select
-                        value={formData.role}
-                        onChange={(e) =>
-                          setFormData({ ...formData, role: e.target.value })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                      >
-                        {currentUser && getUserRoleRank(currentUser) > ROLE_RANK.SUPERADMIN ? (
-                          <>
-                            <option value="SUPERADMIN">Super Admin</option>
-                            <option value="ADMIN">Admin</option>
-                            <option value="SUPERVISOR">Supervisor</option>
-                            <option value="SURVEYOR">Surveyor</option>
-                            <option value="VIEWER">Viewer</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="ADMIN">Admin</option>
-                            <option value="SUPERVISOR">Supervisor</option>
-                            <option value="SURVEYOR">Surveyor</option>
-                            <option value="VIEWER">Viewer</option>
-                          </>
-                        )}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Mobile Number
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter mobile number"
-                        pattern="[0-9]{10}"
-                        maxLength={10}
-                        onKeyPress={(e) => {
-                          if (!/[0-9]/.test(e.key)) {
-                            e.preventDefault();
-                          }
-                        }}
-                        value={formData.mobileNumber}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            mobileNumber: e.target.value
-                              .replace(/\D/g, "")
-                              .slice(0, 10),
-                          })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                    </div>
-                    <div className="flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => setShowCreateModal(false)}
-                        className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={creatingUser}
-                        className={`px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          creatingUser
-                            ? "bg-blue-400 cursor-not-allowed"
-                            : "bg-blue-600 hover:bg-blue-700"
-                        }`}
-                      >
-                        {creatingUser ? "Creating..." : "Create User"}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Edit User Modal */}
-          {showEditModal && selectedUser && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-              <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-                <div className="mt-3">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">
-                    Edit User
-                  </h3>
-                  <form onSubmit={handleEditUser} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Username
-                      </label>
-                      <input
-                        type="text"
-                        disabled
-                        placeholder="Enter username"
-                        value={formData.username}
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Name
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter name"
-                        value={formData.name}
-                        onChange={(e) =>
-                          setFormData({ ...formData, name: e.target.value })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Role
-                      </label>
-                      <select
-                        value={formData.role}
-                        onChange={(e) =>
-                          setFormData({ ...formData, role: e.target.value })
-                        }
-                        disabled={!currentUser || getUserRoleRank(currentUser) <= ROLE_RANK[formData.role]}
-                        className={`mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          !currentUser || getUserRoleRank(currentUser) <= ROLE_RANK[formData.role]
-                            ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                            : "bg-white text-gray-900"
-                        }`}
-                        title={!currentUser || getUserRoleRank(currentUser) <= ROLE_RANK[formData.role] 
-                          ? `Cannot assign ${formData.role} role or higher` 
-                          : "Change user role"}
-                      >
-                        {currentUser && getUserRoleRank(currentUser) > ROLE_RANK.SUPERADMIN ? (
-                          <>
-                            <option value="SUPERADMIN">Super Admin</option>
-                            <option value="ADMIN">Admin</option>
-                            <option value="SUPERVISOR">Supervisor</option>
-                            <option value="SURVEYOR">Surveyor</option>
-                            <option value="VIEWER">Viewer</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="ADMIN">Admin</option>
-                            <option value="SUPERVISOR">Supervisor</option>
-                            <option value="SURVEYOR">Surveyor</option>
-                            <option value="VIEWER">Viewer</option>
-                          </>
-                        )}
-                      </select>
-                      {(!currentUser || getUserRoleRank(currentUser) <= ROLE_RANK[formData.role]) && (
-                        <p className="text-xs text-orange-600 mt-1">
-                          ⚠️ You can only assign roles lower than your own
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Mobile Number
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Enter mobile number"
-                        pattern="[0-9]{10}"
-                        maxLength={10}
-                        onKeyPress={(e) => {
-                          if (!/[0-9]/.test(e.key)) {
-                            e.preventDefault();
-                          }
-                        }}
-                        value={formData.mobileNumber}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            mobileNumber: e.target.value
-                              .replace(/\D/g, "")
-                              .slice(0, 10),
-                          })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">
-                        Password (leave blank to keep unchanged)
-                      </label>
-                      <input
-                        type="password"
-                        placeholder="Enter new password"
-                        value={formData.password}
-                        onChange={(e) =>
-                          setFormData({ ...formData, password: e.target.value })
-                        }
-                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                      />
-                    </div>
-                    <div className="flex justify-end space-x-3">
-                      <button
-                        type="button"
-                        onClick={() => setShowEditModal(false)}
-                        className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // Validate before showing confirmation
-                          if (!formData.name || formData.name.length < 3) {
-                            toast.error("Name must be at least 3 characters long");
-                            return;
-                          }
-                          if (!formData.mobileNumber || formData.mobileNumber.length !== 10) {
-                            toast.error("Mobile number must be exactly 10 digits");
-                            return;
-                          }
-                          if (formData.password && formData.password.length < 8) {
-                            toast.error("Password must be at least 8 characters long");
-                            return;
-                          }
-                          setShowUpdateConfirm(true);
-                        }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                      >
-                        Update User
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Edit Confirmation Modal */}
-          {showEditConfirm && userToEdit && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-              <div className="relative mx-auto p-6 border w-96 shadow-lg rounded-lg bg-white">
-                <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100 mb-4">
-                    <svg className="h-6 w-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Edit User</h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                    You are about to edit user <strong>{userToEdit.name || userToEdit.username}</strong>. 
-                    Click "Continue" to proceed with editing user details.
-                  </p>
-                  <div className="flex justify-center space-x-3">
-                    <button
-                      onClick={() => {
-                        setShowEditConfirm(false);
-                        setUserToEdit(null);
-                      }}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedUser(userToEdit);
-                        const userRoleName = userToEdit.role || userToEdit.userRoleMaps?.[0]?.role?.roleName || "";
-                        setFormData({
-                          username: userToEdit.username,
-                          name: userToEdit.name || "",
-                          password: "",
-                          role: userRoleName,
-                          mobileNumber: userToEdit.mobileNumber || "",
-                          status: userToEdit.isActive ? "ACTIVE" : "INACTIVE",
-                        });
-                        setShowEditConfirm(false);
-                        setUserToEdit(null);
-                        setShowEditModal(true);
-                      }}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                    >
-                      Continue
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Update Confirmation Modal */}
-          {showUpdateConfirm && selectedUser && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-              <div className="relative mx-auto p-6 border w-96 shadow-lg rounded-lg bg-white">
-                <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-                    <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Update User</h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                    Are you sure you want to update user <strong>{selectedUser.name || selectedUser.username}</strong>? This action will modify the user details.
-                  </p>
-                  <div className="flex justify-center space-x-3">
-                    <button
-                      onClick={() => {
-                        setShowUpdateConfirm(false);
-                        // Keep the form open with current values
-                      }}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => {
-                        executeUpdate();
-                      }}
-                      className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                    >
-                      Proceed
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Delete Confirmation Modal */}
-          {showDeleteConfirm && userToDelete && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-              <div className="relative mx-auto p-6 border w-96 shadow-lg rounded-lg bg-white">
-                <div className="text-center">
-                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
-                    <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Delete User</h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                    Are you sure you want to delete this user? This action cannot be undone and will permanently remove the user from the system.
-                  </p>
-                  <div className="flex justify-center space-x-3">
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleDeleteUser(userToDelete);
-                        setShowDeleteConfirm(false);
-                        setUserToDelete(null);
-                      }}
-                      className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Deactivate/Activate Confirmation Modal */}
-          {showDeactivateConfirm && userToDeactivate && (
-            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center">
-              <div className="relative mx-auto p-6 border w-96 shadow-lg rounded-lg bg-white">
-                <div className="text-center">
-                  <div className={`mx-auto flex items-center justify-center h-12 w-12 rounded-full mb-4 ${
-                    userToDeactivate.isActive ? 'bg-orange-100' : 'bg-green-100'
-                  }`}>
-                    <svg className={`h-6 w-6 ${
-                      userToDeactivate.isActive ? 'text-orange-600' : 'text-green-600'
-                    }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      {userToDeactivate.isActive ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-                      ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      )}
-                    </svg>
-                  </div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {userToDeactivate.isActive ? "Deactivate" : "Activate"} User
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-6">
-                    Are you sure you want to {userToDeactivate.isActive ? "deactivate" : "activate"} this user?
-                  </p>
-                  <div className="flex justify-center space-x-3">
-                    <button
-                      onClick={() => {
-                        setShowDeactivateConfirm(false);
-                        setUserToDeactivate(null);
-                      }}
-                      className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleDeactivateUser(userToDeactivate);
-                        setShowDeactivateConfirm(false);
-                        setUserToDeactivate(null);
-                      }}
-                      className={`px-4 py-2 text-white rounded-md hover:bg-opacity-90 ${
-                        userToDeactivate.isActive 
-                          ? "bg-orange-600 hover:bg-orange-700" 
-                          : "bg-green-600 hover:bg-green-700"
-                      }`}
-                    >
-                      {userToDeactivate.isActive ? "Deactivate" : "Activate"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
+
+        {/* Create Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setShowCreateModal(false)}></div>
+            <div className="relative bg-[#161B26] w-full max-w-lg rounded-[2.5rem] border border-slate-800 border-t-blue-600 border-t-4 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+               <div className="p-10 space-y-8">
+                  <div className="flex items-center justify-between">
+                     <div className="space-y-1">
+                        <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Create Identity</h3>
+                        <p className="text-slate-500 text-sm font-medium italic">Provisioning new system node</p>
+                     </div>
+                     <button onClick={() => setShowCreateModal(false)} className="p-3 bg-slate-800/50 text-slate-500 hover:text-white rounded-2xl transition-all">
+                        <X className="w-6 h-6" />
+                     </button>
+                  </div>
+
+                  <form onSubmit={handleCreateUser} className="space-y-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Username</label>
+                          <input required value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono" placeholder="un.unique" />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Display Name</label>
+                          <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all shadow-inner" placeholder="John Doe" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Access Cipher (Password)</label>
+                        <input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" placeholder="••••••••" />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Authorization</label>
+                          <div className="relative">
+                            <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 h-full appearance-none cursor-pointer uppercase tracking-widest text-[10px]">
+                               <option value="ADMIN">Administrator</option>
+                               <option value="SUPERVISOR">Supervisor</option>
+                               <option value="SURVEYOR">Field Surveyor</option>
+                               <option value="VIEWER">Guest Viewer</option>
+                            </select>
+                            <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Contact String</label>
+                          <input type="text" maxLength={10} value={formData.mobileNumber} onChange={e => setFormData({...formData, mobileNumber: e.target.value.replace(/\D/g, "")})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono" placeholder="9876543210" />
+                        </div>
+                      </div>
+
+                      <div className="flex gap-4 pt-4">
+                        <button type="button" onClick={() => setShowCreateModal(false)} className="flex-1 py-4 bg-slate-800 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:text-white transition-all active:scale-95">Discard</button>
+                        <button type="submit" disabled={creatingUser} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-500 shadow-xl shadow-blue-900/40 transition-all active:scale-95 disabled:opacity-50">
+                           {creatingUser ? <Activity className="w-4 h-4 mx-auto animate-spin" /> : "Authorize Node"}
+                        </button>
+                      </div>
+                  </form>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Status Change Modal (Deactivate) */}
+        {showDeactivateConfirm && userToDeactivate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowDeactivateConfirm(false)}></div>
+            <div className="relative bg-[#161B26] w-full max-w-sm rounded-[2.5rem] border border-slate-800 border-t-amber-600 border-t-4 shadow-2xl p-10 text-center animate-in zoom-in-95 duration-200">
+               <div className="w-20 h-20 bg-amber-500/10 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-amber-500 border border-amber-500/20">
+                  {userToDeactivate.isActive ? <ShieldAlert className="w-10 h-10" /> : <ShieldCheck className="w-10 h-10" />}
+               </div>
+               <h3 className="text-2xl font-black text-white italic uppercase tracking-tight mb-2">{userToDeactivate.isActive ? "Suspend Access?" : "Restore Access?"}</h3>
+               <p className="text-slate-500 text-sm font-medium italic mb-10 leading-relaxed">
+                  Modify system privileges for <span className="text-blue-400 font-bold">@{userToDeactivate.username}</span>. This node will be {userToDeactivate.isActive ? "restrained" : "restored"}.
+               </p>
+               <div className="flex flex-col gap-3">
+                  <button onClick={handleDeactivate} className="py-4 bg-amber-600 hover:bg-amber-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-amber-900/20 transition-all active:scale-95">Execute Protocol</button>
+                  <button onClick={() => setShowDeactivateConfirm(false)} className="py-4 bg-slate-800 text-slate-400 hover:text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all">Abort</button>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Termination Modal */}
+        {showDeleteConfirm && userToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-xl" onClick={() => setShowDeleteConfirm(false)}></div>
+            <div className="relative bg-[#161B26] w-full max-w-sm rounded-[2.5rem] border border-red-900 border-t-red-600 border-t-4 shadow-2xl p-10 text-center animate-in zoom-in-95 duration-200">
+               <div className="w-24 h-24 bg-red-600/10 rounded-full flex items-center justify-center mx-auto mb-8 border border-red-600/20">
+                  <Trash2 className="w-12 h-12 text-red-500" />
+               </div>
+               <h3 className="text-2xl font-black text-white italic uppercase tracking-tight mb-4">Hard Delete Node?</h3>
+               <p className="text-slate-500 text-sm font-medium italic mb-10 leading-relaxed">
+                  Terminal command issued for identity destruction. All session logs and access keys will be <span className="text-red-500 font-black">PERMANENTLY VOIDED</span>.
+               </p>
+               <div className="flex flex-col gap-3">
+                  <button onClick={handleDelete} className="py-4 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-2xl shadow-red-900/40 transition-all active:scale-95">Verify Termination</button>
+                  <button onClick={() => setShowDeleteConfirm(false)} className="py-4 bg-slate-800 text-slate-400 hover:text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all">Safe Abort</button>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Resource Confirm Hub */}
+        {showEditConfirm && userToEdit && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowEditConfirm(false)}></div>
+            <div className="relative bg-[#161B26] w-full max-w-sm rounded-[2.5rem] border border-blue-900/50 border-t-blue-600 border-t-4 shadow-2xl p-10 text-center animate-in zoom-in-110 duration-200">
+               <div className="w-20 h-20 bg-blue-600/10 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-blue-400 border border-blue-400/20">
+                  <Settings className="w-10 h-10" />
+               </div>
+               <h3 className="text-2xl font-black text-white italic uppercase tracking-tight mb-2">Configure Resource?</h3>
+               <p className="text-slate-500 text-sm font-medium italic mb-10 leading-relaxed">
+                  Modifying topographical settings for <span className="text-white font-bold">@{userToEdit.username}</span>.
+               </p>
+               <div className="flex flex-col gap-3">
+                  <button onClick={() => {
+                        setSelectedUser(userToEdit);
+                        const roleName = userToEdit.role || userToEdit.userRoleMaps?.[0]?.role?.roleName || "";
+                        setFormData({ username: userToEdit.username, name: userToEdit.name || "", password: "", role: roleName, mobileNumber: userToEdit.mobileNumber || "", status: userToEdit.isActive ? "ACTIVE" : "INACTIVE" });
+                        setShowEditConfirm(false);
+                        setShowEditModal(true);
+                  }} className="py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-blue-900/40 transition-all active:scale-95">Open Config Hub</button>
+                  <button onClick={() => { setShowEditConfirm(false); setUserToEdit(null); }} className="py-4 bg-slate-800 text-slate-400 hover:text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all">Decline Edit</button>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Update Logic Confirm */}
+        {showUpdateConfirm && selectedUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={() => setShowUpdateConfirm(false)}></div>
+            <div className="relative bg-[#161B26] w-full max-w-sm rounded-[2.5rem] border border-emerald-900 border-t-emerald-600 border-t-4 shadow-2xl p-10 text-center animate-in zoom-in-95 duration-200">
+               <div className="w-20 h-20 bg-emerald-500/10 rounded-[2rem] flex items-center justify-center mx-auto mb-8 text-emerald-400 border border-emerald-400/20">
+                  <UserCheck className="w-10 h-10" />
+               </div>
+               <h3 className="text-2xl font-black text-white italic uppercase tracking-tight mb-2">Commit Logic?</h3>
+               <p className="text-slate-500 text-sm font-medium italic mb-10">Sync current topographical changes to the central registry for <span className="text-white font-bold">@{selectedUser.username}</span>.</p>
+               <div className="flex flex-col gap-3">
+                  <button onClick={executeUpdate} className="py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-emerald-900/20 transition-all active:scale-95">Commit Changes</button>
+                  <button onClick={() => setShowUpdateConfirm(false)} className="py-4 bg-slate-800 text-slate-400 hover:text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all">Safe Abort</button>
+               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Edit Modal (Content rendered inside to keep structure clean) */}
+        {showEditModal && selectedUser && (
+           <div className="fixed inset-0 z-[55] flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/80 backdrop-blur-md" onClick={() => setShowEditModal(false)}></div>
+              <div className="relative bg-[#161B26] w-full max-w-lg rounded-[2.5rem] border border-slate-800 border-t-blue-600 border-t-4 shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+                  <div className="p-10 space-y-8">
+                     <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                           <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Config Node</h3>
+                           <p className="text-sm font-medium italic text-blue-400">@{selectedUser.username}</p>
+                        </div>
+                        <button onClick={() => setShowEditModal(false)} className="p-3 bg-slate-800/50 text-slate-500 hover:text-white rounded-2xl transition-all"><X className="w-6 h-6" /></button>
+                     </div>
+
+                     <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+                        <div className="grid grid-cols-2 gap-4">
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Assigned Name</label>
+                              <input value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" />
+                           </div>
+                           <div className="space-y-2">
+                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Link String</label>
+                              <input value={formData.mobileNumber} onChange={e => setFormData({...formData, mobileNumber: e.target.value.replace(/\D/g, "")})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all font-mono" />
+                           </div>
+                        </div>
+
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Override Cipher (New Password)</label>
+                           <input type="password" value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 transition-all" placeholder="•••••••• (Zero for No Change)" />
+                        </div>
+
+                        <div className="space-y-2">
+                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic ml-1">Authorization Matrix</label>
+                           <div className="relative">
+                              <select value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})} className="w-full bg-slate-900 border border-slate-800 rounded-2xl px-5 py-4 text-sm font-bold text-slate-200 outline-none focus:ring-4 focus:ring-blue-500/10 appearance-none cursor-pointer uppercase tracking-widest text-[10px]">
+                                 {["SUPERADMIN", "ADMIN", "SUPERVISOR", "SURVEYOR", "VIEWER"].map(r => <option key={r} value={r} className="bg-slate-900">{r.replace('_', ' ')}</option>)}
+                              </select>
+                              <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
+                           </div>
+                        </div>
+
+                        <div className="flex gap-4 pt-4">
+                           <button type="button" onClick={() => setShowEditModal(false)} className="flex-1 py-4 bg-slate-800 text-slate-400 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:text-white transition-all active:scale-95">Discard</button>
+                           <button type="button" onClick={() => setShowUpdateConfirm(true)} className="flex-[2] py-4 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-500 shadow-xl shadow-blue-900/40 transition-all active:scale-95">Flush Engine</button>
+                        </div>
+                     </form>
+                  </div>
+              </div>
+           </div>
+        )}
       </MainLayout>
     </ProtectedRoute>
   );
